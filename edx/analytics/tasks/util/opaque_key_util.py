@@ -70,6 +70,22 @@ def get_org_id_for_course(course_id):
         return None
 
 
+def get_course_for_course(course_id):
+    try:
+        course_key = CourseKey.from_string(course_id)
+        return course_key.course
+    except InvalidKeyError:
+        return None
+
+
+def get_run_for_course(course_id):
+    try:
+        course_key = CourseKey.from_string(course_id)
+        return course_key.run
+    except InvalidKeyError:
+        return None
+
+
 def get_filename_safe_course_id(course_id, replacement_char='_'):
     """
     Create a representation of a course_id that can be used safely in a filepath.
