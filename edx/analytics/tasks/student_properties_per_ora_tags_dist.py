@@ -146,15 +146,16 @@ class StudentPropertiesPerOraTagsPerCourse(
         #          'Paul & Elder Critical Thinking Model - Concepts and Ideas'] }
 
         tags_extended_dict = {}
-        for tag_key, tag_val in latest_tags.iteritems():
-            tag_val_lst = [tag_val] if isinstance(tag_val, basestring) else tag_val
-            tags_extended_dict[tag_key] = []
-            for tag in tag_val_lst:
-                tag_split_lst = tag.split(' - ')
-                for idx, tag_part in enumerate(tag_split_lst):
-                    tag_new_val = ' - '.join(tag_split_lst[0:idx + 1])
-                    if tag_new_val not in tags_extended_dict[tag_key]:
-                        tags_extended_dict[tag_key].append(tag_new_val)
+        if latest_tags:
+            for tag_key, tag_val in latest_tags.iteritems():
+                tag_val_lst = [tag_val] if isinstance(tag_val, basestring) else tag_val
+                tags_extended_dict[tag_key] = []
+                for tag in tag_val_lst:
+                    tag_split_lst = tag.split(' - ')
+                    for idx, tag_part in enumerate(tag_split_lst):
+                        tag_new_val = ' - '.join(tag_split_lst[0:idx + 1])
+                        if tag_new_val not in tags_extended_dict[tag_key]:
+                            tags_extended_dict[tag_key].append(tag_new_val)
 
         # save values to the database table
 
