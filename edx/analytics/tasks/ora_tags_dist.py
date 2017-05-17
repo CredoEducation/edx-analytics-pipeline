@@ -4,6 +4,7 @@ import luigi.hdfs
 import luigi.s3
 
 import edx.analytics.tasks.util.eventlog as eventlog
+import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
 from edx.analytics.tasks.url import get_target_from_url
 from edx.analytics.tasks.mapreduce import MapReduceJobTask, MapReduceJobTaskMixin
 from edx.analytics.tasks.mysql_load import MysqlInsertTask
@@ -56,7 +57,7 @@ class OraTagsDistributionPerCourse(
         if not course_id:
             return
 
-        org_id = event.get('context').get('org_id')
+        org_id = opaque_key_util.get_org_id_for_course(course_id)
 
         event_data = eventlog.get_event_data(event)
         if event_data is None:

@@ -68,7 +68,7 @@ class StudentPropertiesPerOraTagsPerCourse(
         if not ora_id:
             return
 
-        saved_tags = event.get('context').get('asides', {}).get('tagging_aside', {}).get('saved_tags', {})
+        saved_tags = event.get('context').get('asides', {}).get('tagging_ora_aside', {}).get('saved_tags', {})
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
 
