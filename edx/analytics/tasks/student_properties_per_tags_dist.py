@@ -58,6 +58,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         if not course_id:
             return
 
+        if opaque_key_util.ignore_erie_admin_events(course_id, eventlog.get_user_id(event)):
+            return
+
         org_id = opaque_key_util.get_org_id_for_course(course_id)
         course = opaque_key_util.get_course_for_course(course_id)
         run = opaque_key_util.get_run_for_course(course_id)

@@ -86,6 +86,16 @@ def get_run_for_course(course_id):
         return None
 
 
+def ignore_erie_admin_events(course_id, user_id):
+    ignore_user_ids = [2, 5, 10, 20, 139, 154, 678234,
+                       921319, 938557, 940372, 944731, 944855, 945085, 945131, 946486, 946976]
+    course_id_to_ignore = u'course-v1:SUNY-Erie-Community-College+ECC-01+Spring-2017'
+
+    if course_id == course_id_to_ignore and (user_id is None or user_id in ignore_user_ids):
+        return True
+    return False
+
+
 def get_filename_safe_course_id(course_id, replacement_char='_'):
     """
     Create a representation of a course_id that can be used safely in a filepath.

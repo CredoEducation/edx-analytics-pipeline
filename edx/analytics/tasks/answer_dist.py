@@ -988,6 +988,9 @@ def get_problem_check_event(line):
         log.error("encountered explicit problem_check event with bogus course_id: %s", event)
         return None
 
+    if opaque_key_util.ignore_erie_admin_events(course_id, eventlog.get_user_id(event)):
+        return None
+
     # Get the problem_id from the event data.
     problem_id = problem_data.get('problem_id')
     if problem_id is None:
