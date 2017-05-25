@@ -163,6 +163,23 @@ class StudentPropertiesPerOraTagsPerCourse(
         # save values to the database table
 
         if not latest_tags:
+            yield StudentPropertiesAndOraTagsRecord(
+                course_id=course_id,
+                org_id=org_id,
+                course=course,
+                run=run,
+                module_id=ora_id,
+                criterion_name=criterion_name,
+                assessment_type=assessment_type,
+                property_type=None,
+                property_name=None,
+                property_value=None,
+                tag_name=None,
+                tag_value=None,
+                possible_points=latest_points_possible,
+                total_earned_points=total_earned_points,
+                submissions_count=num_submissions_count).to_string_tuple()
+
             for prop_val in props_list_values:
                 yield StudentPropertiesAndOraTagsRecord(
                     course_id=course_id,

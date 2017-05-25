@@ -58,6 +58,10 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         if not course_id:
             return
 
+        user_id = event.get('context').get('user_id', None)
+        if not user_id:
+            return
+
         if opaque_key_util.ignore_erie_admin_events(course_id, eventlog.get_user_id(event)):
             return
 
@@ -79,7 +83,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
 
-        yield (course_id, org_id, course, run, problem_id), (timestamp, saved_tags, student_properties, is_correct)
+        yield (course_id, org_id, course, run, problem_id),\
+              (timestamp, saved_tags, student_properties, is_correct, int(user_id))
 
     def reducer(self, key, values):
         """
@@ -96,21 +101,27 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         num_correct = 0
         num_total = 0
 
+        user2total = {}
+        user2correct = {}
+        user2last_timestamp = {}
+
         latest_timestamp = None
         latest_tags = None
         props = {'registration': {}, 'enrollment': {}}
 
         # prepare base dicts for tags and properties
 
-        for timestamp, saved_tags, student_properties, is_correct in values:
+        for timestamp, saved_tags, student_properties, is_correct, user_id in values:
             if latest_timestamp is None or timestamp > latest_timestamp:
                 latest_timestamp = timestamp
                 latest_tags = saved_tags.copy() if saved_tags else None
 
-            if is_correct:
-                num_correct += 1
+            current_user_last_timestamp = user2last_timestamp.get(user_id, None)
+            if current_user_last_timestamp is None or timestamp > current_user_last_timestamp:
+                user2last_timestamp[user_id] = timestamp
+                user2correct[user_id] = 1 if is_correct else 0
 
-            num_total += 1
+            user2total[user_id] = 1
 
             for prop_type, prop_dict in student_properties.iteritems():
                 for prop_name, prop_value in prop_dict.iteritems():
@@ -118,12 +129,25 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         props[prop_type][prop_name] = {}
                     if prop_value not in props[prop_type][prop_name]:
                         props[prop_type][prop_name][prop_value] = {
-                            'num_correct': 0,
-                            'num_total': 0
+                            'num_correct': {},
+                            'num_total': {},
+                            'user_last_timestamp': {}
                         }
-                    if is_correct:
-                        props[prop_type][prop_name][prop_value]['num_correct'] += 1
-                    props[prop_type][prop_name][prop_value]['num_total'] += 1
+
+                    prop_current_user_last_timestamp = props[prop_type][prop_name][prop_value]['user_last_timestamp']\
+                        .get(user_id, None)
+
+                    if prop_current_user_last_timestamp is None or timestamp > prop_current_user_last_timestamp:
+                        props[prop_type][prop_name][prop_value]['user_last_timestamp'][user_id] = timestamp
+                        props[prop_type][prop_name][prop_value]['num_correct'][user_id] = 1 if is_correct else 0
+
+                    props[prop_type][prop_name][prop_value]['num_total'][user_id] = 1
+
+        if user2total:
+            num_total = sum(user2total.values())
+
+        if user2correct:
+            num_correct = sum(user2correct.values())
 
         # convert properties dict to the list
 
@@ -135,8 +159,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         'type': prop_type,
                         'name': prop_name,
                         'value': prop_value,
-                        'num_total': prop_nums['num_total'],
-                        'num_correct': prop_nums['num_correct'],
+                        'num_total': sum(prop_nums['num_total'].values()),
+                        'num_correct': sum(prop_nums['num_correct'].values()),
                     })
 
         # convert latest tags dict to extended dict. Example:
@@ -163,6 +187,20 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         # save values to the database table
 
         if not latest_tags:
+            yield StudentPropertiesAndTagsRecord(
+                course_id=course_id,
+                org_id=org_id,
+                course=course,
+                run=run,
+                module_id=problem_id,
+                property_type=None,
+                property_name=None,
+                property_value=None,
+                tag_name=None,
+                tag_value=None,
+                total_submissions=num_total,
+                correct_submissions=num_correct).to_string_tuple()
+
             for prop_val in props_list_values:
                 yield StudentPropertiesAndTagsRecord(
                     course_id=course_id,
