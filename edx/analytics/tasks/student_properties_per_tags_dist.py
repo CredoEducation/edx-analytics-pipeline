@@ -186,21 +186,21 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         # save values to the database table
 
-        if not latest_tags:
-            yield StudentPropertiesAndTagsRecord(
-                course_id=course_id,
-                org_id=org_id,
-                course=course,
-                run=run,
-                module_id=problem_id,
-                property_type=None,
-                property_name=None,
-                property_value=None,
-                tag_name=None,
-                tag_value=None,
-                total_submissions=num_total,
-                correct_submissions=num_correct).to_string_tuple()
+        yield StudentPropertiesAndTagsRecord(
+            course_id=course_id,
+            org_id=org_id,
+            course=course,
+            run=run,
+            module_id=problem_id,
+            property_type=None,
+            property_name=None,
+            property_value=None,
+            tag_name=None,
+            tag_value=None,
+            total_submissions=num_total,
+            correct_submissions=num_correct).to_string_tuple()
 
+        if not latest_tags:
             for prop_val in props_list_values:
                 yield StudentPropertiesAndTagsRecord(
                     course_id=course_id,
