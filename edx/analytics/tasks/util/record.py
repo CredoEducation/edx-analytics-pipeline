@@ -530,7 +530,10 @@ class StringField(Field):  # pylint: disable=abstract-method
     @property
     def sql_base_type(self):
         if self.length:
-            return 'VARCHAR({length})'.format(length=self.length)
+            if self.length > 255:
+                return 'TEXT'
+            else:
+                return 'VARCHAR({length})'.format(length=self.length)
         else:
             return 'VARCHAR'
 

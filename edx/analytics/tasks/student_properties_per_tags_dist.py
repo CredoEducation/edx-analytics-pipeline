@@ -2,6 +2,7 @@ import logging
 import luigi
 import luigi.hdfs
 import luigi.s3
+import hashlib
 
 import edx.analytics.tasks.util.eventlog as eventlog
 import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
@@ -34,12 +35,24 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
     def output(self):
         return get_target_from_url(self.output_root)
 
+    def _get_question_text(self, event_data):
+        question_text = ''
+        submissions = event_data.get('submission', {})
+        if submissions:
+            for _, submission in submissions.iteritems():
+                if submission:
+                    q_text = submission.get('question', '')
+                    if q_text:
+                        question_text = q_text
+        return question_text
+
     def mapper(self, line):
         """
         Args:
             line: text line from a tracking event log.
 
-        Yields:  (course_id, org_id, course, run, problem_id), (timestamp, saved_tags, student_properties, is_correct)
+        Yields:  (course_id, org_id, course, run, problem_id), (timestamp, saved_tags, student_properties, is_correct,
+                                                                user_id, display_name, question_text)
 
         """
         value = self.get_event_and_date_string(line)
@@ -78,13 +91,16 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             return
 
         is_correct = event_data.get('success') == 'correct'
+        display_name = event.get('context').get('module', {}).get('display_name', '')
+        question_text = self._get_question_text(event_data)
+        question_text = question_text.replace("\n", " ")
 
         saved_tags = event.get('context').get('asides', {}).get('tagging_aside', {}).get('saved_tags', {})
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
 
         yield (course_id, org_id, course, run, problem_id),\
-              (timestamp, saved_tags, student_properties, is_correct, int(user_id))
+              (timestamp, saved_tags, student_properties, is_correct, int(user_id), display_name, question_text)
 
     def reducer(self, key, values):
         """
@@ -93,7 +109,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         Args:
             key:  (course_id, org_id, course, run, problem_id)
-            values:  iterator of (timestamp, saved_tags, student_properties, is_correct)
+            values:  iterator of (timestamp, saved_tags, student_properties, is_correct, 
+                                  user_id, display_name, question_text)
 
         """
         course_id, org_id, course, run, problem_id = key
@@ -106,14 +123,20 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         user2last_timestamp = {}
 
         latest_timestamp = None
+        latest_display_name = u''
+        latest_question_text = u''
         latest_tags = None
         props = {'registration': {}, 'enrollment': {}}
 
         # prepare base dicts for tags and properties
 
-        for timestamp, saved_tags, student_properties, is_correct, user_id in values:
+        for timestamp, saved_tags, student_properties, is_correct, user_id, display_name, question_text in values:
             if latest_timestamp is None or timestamp > latest_timestamp:
                 latest_timestamp = timestamp
+                if display_name:
+                    latest_display_name = display_name
+                if question_text:
+                    latest_question_text = question_text
                 latest_tags = saved_tags.copy() if saved_tags else None
 
             current_user_last_timestamp = user2last_timestamp.get(user_id, None)
@@ -184,6 +207,10 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         if tag_new_val not in tags_extended_dict[tag_key]:
                             tags_extended_dict[tag_key].append(tag_new_val)
 
+        common_name = u''.join([unicode(latest_display_name, 'utf-8'),
+                                unicode(latest_question_text, 'utf-8')])
+        name_hash = hashlib.md5(common_name.encode('utf-8')).hexdigest()
+
         # save values to the database table
 
         yield StudentPropertiesAndTagsRecord(
@@ -192,6 +219,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             course=course,
             run=run,
             module_id=problem_id,
+            display_name=latest_display_name,
+            question_text=latest_question_text,
+            name_hash=name_hash,
             property_type=None,
             property_name=None,
             property_value=None,
@@ -208,6 +238,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                     course=course,
                     run=run,
                     module_id=problem_id,
+                    display_name=latest_display_name,
+                    question_text=latest_question_text,
+                    name_hash=name_hash,
                     property_type=prop_val['type'],
                     property_name=prop_val['name'],
                     property_value=prop_val['value'],
@@ -224,6 +257,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         course=course,
                         run=run,
                         module_id=problem_id,
+                        display_name=latest_display_name,
+                        question_text=latest_question_text,
+                        name_hash=name_hash,
                         property_type=None,
                         property_name=None,
                         property_value=None,
@@ -238,6 +274,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                             course=course,
                             run=run,
                             module_id=problem_id,
+                            display_name=latest_display_name,
+                            question_text=latest_question_text,
+                            name_hash=name_hash,
                             property_type=prop_val['type'],
                             property_name=prop_val['name'],
                             property_value=prop_val['value'],
@@ -253,6 +292,9 @@ class StudentPropertiesAndTagsRecord(Record):
     course = StringField(length=255, nullable=False, description='Course')
     run = StringField(length=255, nullable=False, description='Run')
     module_id = StringField(length=255, nullable=False, description='Problem id')
+    display_name = StringField(length=2048, nullable=True, description='Problem Display Name')
+    question_text = StringField(length=21844, nullable=True, description='Question Text')
+    name_hash = StringField(length=255, nullable=True, description='Name Hash')
     property_type = StringField(length=255, nullable=True, description='Property type')
     property_name = StringField(length=255, nullable=True, description='Property name')
     property_value = StringField(length=255, nullable=True, description='Property value')
@@ -297,5 +339,6 @@ class StudentPropertiesAndTagsDistributionWorkflow(StudentPropertiesPerTagsPerCo
     def indexes(self):
         return [
             ('course_id',),
+            ('module_id',),
             ('tag_value', 'property_name', 'property_value'),
         ]

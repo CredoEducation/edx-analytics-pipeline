@@ -2,6 +2,7 @@ import logging
 import luigi
 import luigi.hdfs
 import luigi.s3
+import hashlib
 
 import edx.analytics.tasks.util.eventlog as eventlog
 import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
@@ -26,13 +27,6 @@ class StudentPropertiesPerOraTagsPerCourse(
         return get_target_from_url(self.output_root)
 
     def mapper(self, line):
-        """
-        Args:
-            line: text line from a tracking event log.
-
-        Yields:  (course_id, org_id, course, run, problem_id), (timestamp, saved_tags, student_properties, is_correct)
-
-        """
         value = self.get_event_and_date_string(line)
         if value is None:
             return
@@ -75,6 +69,18 @@ class StudentPropertiesPerOraTagsPerCourse(
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
 
+        question_text = u''
+        prompts_list = []
+        prompts = event.get('event', {}).get('prompts', [])
+        if prompts:
+            for prompt in prompts:
+                if 'description' in prompt:
+                    prompts_list.append(unicode(prompt['description'], 'utf-8'))
+
+        if prompts_list:
+            question_text = u". ".join(prompts_list)
+        question_text = question_text.replace("\n", " ")
+
         parts = event.get('event', {}).get('parts', [])
         for part in parts:
             part_criterion_name = part.get('criterion', {}).get('name', None)
@@ -83,30 +89,28 @@ class StudentPropertiesPerOraTagsPerCourse(
             part_saved_tags = saved_tags.get(part_criterion_name, {})
 
             yield (course_id, org_id, course, run, ora_id, assessment_type, part_criterion_name),\
-                  (timestamp, part_saved_tags, student_properties, part_points_possible, part_points_scored)
+                  (timestamp, part_saved_tags, student_properties, part_points_possible, part_points_scored,
+                   question_text)
 
     def reducer(self, key, values):
-        """
-        Args:
-            key:  (course_id, org_id, course, run, ora_id, assessment_type, criterion_name)
-            values:  iterator of (timestamp, saved_tags, student_properties, points_possible, points_scored)
-            
-        """
         course_id, org_id, course, run, ora_id, assessment_type, criterion_name = key
 
         total_earned_points = 0
         num_submissions_count = 0
 
         latest_timestamp = None
+        latest_question_text = u''
         latest_tags = None
         latest_points_possible = None
         props = {'registration': {}, 'enrollment': {}}
 
         # prepare base dicts for tags and properties
 
-        for timestamp, saved_tags, student_properties, points_possible, points_scored in values:
+        for timestamp, saved_tags, student_properties, points_possible, points_scored, question_text in values:
             if latest_timestamp is None or timestamp > latest_timestamp:
                 latest_timestamp = timestamp
+                if question_text:
+                    latest_question_text = question_text
                 latest_tags = saved_tags.copy() if saved_tags else None
                 latest_points_possible = points_possible
 
@@ -160,6 +164,8 @@ class StudentPropertiesPerOraTagsPerCourse(
                         if tag_new_val not in tags_extended_dict[tag_key]:
                             tags_extended_dict[tag_key].append(tag_new_val)
 
+        name_hash = hashlib.md5(criterion_name).hexdigest()
+
         # save values to the database table
 
         yield StudentPropertiesAndOraTagsRecord(
@@ -169,6 +175,8 @@ class StudentPropertiesPerOraTagsPerCourse(
             run=run,
             module_id=ora_id,
             criterion_name=criterion_name,
+            question_text=latest_question_text,
+            name_hash=name_hash,
             assessment_type=assessment_type,
             property_type=None,
             property_name=None,
@@ -188,6 +196,8 @@ class StudentPropertiesPerOraTagsPerCourse(
                     run=run,
                     module_id=ora_id,
                     criterion_name=criterion_name,
+                    question_text=latest_question_text,
+                    name_hash=name_hash,
                     assessment_type=assessment_type,
                     property_type=prop_val['type'],
                     property_name=prop_val['name'],
@@ -207,6 +217,8 @@ class StudentPropertiesPerOraTagsPerCourse(
                         run=run,
                         module_id=ora_id,
                         criterion_name=criterion_name,
+                        question_text=latest_question_text,
+                        name_hash=name_hash,
                         assessment_type=assessment_type,
                         property_type=None,
                         property_name=None,
@@ -224,6 +236,8 @@ class StudentPropertiesPerOraTagsPerCourse(
                             run=run,
                             module_id=ora_id,
                             criterion_name=criterion_name,
+                            question_text=latest_question_text,
+                            name_hash=name_hash,
                             assessment_type=assessment_type,
                             property_type=prop_val['type'],
                             property_name=prop_val['name'],
@@ -240,8 +254,10 @@ class StudentPropertiesAndOraTagsRecord(Record):
     org_id = StringField(length=255, nullable=False, description='Org id')
     course = StringField(length=255, nullable=False, description='Course')
     run = StringField(length=255, nullable=False, description='Run')
-    module_id = StringField(length=255, nullable=False, description='Ora id')
+    module_id = StringField(length=255, nullable=False, description='ORA id')
     criterion_name = StringField(length=255, nullable=False, description='Criterion name')
+    question_text = StringField(length=21844, nullable=True, description='Question Text')
+    name_hash = StringField(length=255, nullable=True, description='Name Hash')
     assessment_type = StringField(length=255, nullable=False, description='Assessment type')
     property_type = StringField(length=255, nullable=True, description='Property type')
     property_name = StringField(length=255, nullable=True, description='Property name')
