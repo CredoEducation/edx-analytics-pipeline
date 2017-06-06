@@ -207,8 +207,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         if tag_new_val not in tags_extended_dict[tag_key]:
                             tags_extended_dict[tag_key].append(tag_new_val)
 
-        common_name = u''.join([unicode(latest_display_name, 'utf-8'),
-                                unicode(latest_question_text, 'utf-8')])
+        common_name = u''.join([latest_display_name, latest_question_text])
         name_hash = hashlib.md5(common_name.encode('utf-8')).hexdigest()
 
         # save values to the database table
