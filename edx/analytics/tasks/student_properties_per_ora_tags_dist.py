@@ -75,7 +75,7 @@ class StudentPropertiesPerOraTagsPerCourse(
         if prompts:
             for prompt in prompts:
                 if 'description' in prompt:
-                    prompts_list.append(unicode(prompt['description'], 'utf-8'))
+                    prompts_list.append(prompt['description'])
 
         if prompts_list:
             question_text = u". ".join(prompts_list)
