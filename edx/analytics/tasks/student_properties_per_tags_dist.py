@@ -229,25 +229,24 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             total_submissions=num_total,
             correct_submissions=num_correct).to_string_tuple()
 
-        if not latest_tags:
-            for prop_val in props_list_values:
-                yield StudentPropertiesAndTagsRecord(
-                    course_id=course_id,
-                    org_id=org_id,
-                    course=course,
-                    run=run,
-                    module_id=problem_id,
-                    display_name=latest_display_name,
-                    question_text=latest_question_text,
-                    name_hash=name_hash,
-                    property_type=prop_val['type'],
-                    property_name=prop_val['name'],
-                    property_value=prop_val['value'],
-                    tag_name=None,
-                    tag_value=None,
-                    total_submissions=prop_val['num_total'],
-                    correct_submissions=prop_val['num_correct']).to_string_tuple()
-        else:
+        for prop_val in props_list_values:
+            yield StudentPropertiesAndTagsRecord(
+                course_id=course_id,
+                org_id=org_id,
+                course=course,
+                run=run,
+                module_id=problem_id,
+                display_name=latest_display_name,
+                question_text=latest_question_text,
+                name_hash=name_hash,
+                property_type=prop_val['type'],
+                property_name=prop_val['name'],
+                property_value=prop_val['value'],
+                tag_name=None,
+                tag_value=None,
+                total_submissions=prop_val['num_total'],
+                correct_submissions=prop_val['num_correct']).to_string_tuple()
+        if latest_tags:
             for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
                 for val in tags_extended_lst:
                     yield StudentPropertiesAndTagsRecord(
