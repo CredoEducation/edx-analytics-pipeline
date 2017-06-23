@@ -11,7 +11,7 @@ from edx.analytics.tasks.mapreduce import MapReduceJobTask, MapReduceJobTaskMixi
 from edx.analytics.tasks.mysql_load import MysqlInsertTask
 from edx.analytics.tasks.decorators import workflow_entry_point
 from edx.analytics.tasks.pathutil import EventLogSelectionDownstreamMixin, EventLogSelectionMixin
-from edx.analytics.tasks.util.record import Record, StringField, IntegerField
+from edx.analytics.tasks.util.record import Record, StringField, IntegerField, FloatField
 
 
 log = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             line: text line from a tracking event log.
 
         Yields:  (course_id, org_id, course, run, problem_id), (timestamp, saved_tags, student_properties, is_correct,
-                                                                user_id, display_name, question_text)
+                                                                grade, user_id, display_name, question_text)
 
         """
         value = self.get_event_and_date_string(line)
@@ -91,6 +91,11 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             return
 
         is_correct = event_data.get('success') == 'correct'
+        grade = float(event_data.get('grade', 0))
+
+        if is_correct and grade > 1:
+            grade = 1.0
+
         display_name = event.get('context').get('module', {}).get('display_name', '')
         question_text = self._get_question_text(event_data)
         question_text = question_text.replace("\n", " ")
@@ -100,7 +105,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             .get('student_properties', {})
 
         yield (course_id, org_id, course, run, problem_id),\
-              (timestamp, saved_tags, student_properties, is_correct, int(user_id), display_name, question_text)
+              (timestamp, saved_tags, student_properties, is_correct, grade, int(user_id), display_name, question_text)
 
     def reducer(self, key, values):
         """
@@ -110,16 +115,18 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         Args:
             key:  (course_id, org_id, course, run, problem_id)
             values:  iterator of (timestamp, saved_tags, student_properties, is_correct, 
-                                  user_id, display_name, question_text)
+                                  grade, user_id, display_name, question_text)
 
         """
         course_id, org_id, course, run, problem_id = key
 
-        num_correct = 0
         num_total = 0
+        num_correct = 0
+        num_correct_grade = 0
 
         user2total = {}
         user2correct = {}
+        user2correct_grade = {}
         user2last_timestamp = {}
 
         latest_timestamp = None
@@ -130,7 +137,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         # prepare base dicts for tags and properties
 
-        for timestamp, saved_tags, student_properties, is_correct, user_id, display_name, question_text in values:
+        for timestamp, saved_tags, student_properties, is_correct, grade, user_id, display_name, question_text in values:
             if latest_timestamp is None or timestamp > latest_timestamp:
                 latest_timestamp = timestamp
                 if display_name:
@@ -143,6 +150,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             if current_user_last_timestamp is None or timestamp > current_user_last_timestamp:
                 user2last_timestamp[user_id] = timestamp
                 user2correct[user_id] = 1 if is_correct else 0
+                user2correct_grade[user_id] = grade
 
             user2total[user_id] = 1
 
@@ -152,8 +160,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         props[prop_type][prop_name] = {}
                     if prop_value not in props[prop_type][prop_name]:
                         props[prop_type][prop_name][prop_value] = {
-                            'num_correct': {},
                             'num_total': {},
+                            'num_correct': {},
+                            'num_correct_grade': {},
                             'user_last_timestamp': {}
                         }
 
@@ -163,6 +172,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                     if prop_current_user_last_timestamp is None or timestamp > prop_current_user_last_timestamp:
                         props[prop_type][prop_name][prop_value]['user_last_timestamp'][user_id] = timestamp
                         props[prop_type][prop_name][prop_value]['num_correct'][user_id] = 1 if is_correct else 0
+                        props[prop_type][prop_name][prop_value]['num_correct_grade'][user_id] = grade
 
                     props[prop_type][prop_name][prop_value]['num_total'][user_id] = 1
 
@@ -171,6 +181,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         if user2correct:
             num_correct = sum(user2correct.values())
+
+        if user2correct_grade:
+            num_correct_grade = sum(user2correct_grade.values())
 
         # convert properties dict to the list
 
@@ -184,6 +197,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         'value': prop_value,
                         'num_total': sum(prop_nums['num_total'].values()),
                         'num_correct': sum(prop_nums['num_correct'].values()),
+                        'num_correct_grade': sum(prop_nums['num_correct_grade'].values()),
                     })
 
         # convert latest tags dict to extended dict. Example:
@@ -227,7 +241,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             tag_name=None,
             tag_value=None,
             total_submissions=num_total,
-            correct_submissions=num_correct).to_string_tuple()
+            correct_submissions=num_correct,
+            correct_submissions_grades=num_correct_grade).to_string_tuple()
 
         for prop_val in props_list_values:
             yield StudentPropertiesAndTagsRecord(
@@ -245,7 +260,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 tag_name=None,
                 tag_value=None,
                 total_submissions=prop_val['num_total'],
-                correct_submissions=prop_val['num_correct']).to_string_tuple()
+                correct_submissions=prop_val['num_correct'],
+                correct_submissions_grades=prop_val['num_correct_grade']).to_string_tuple()
         if latest_tags:
             for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
                 for val in tags_extended_lst:
@@ -264,7 +280,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         tag_name=tag_key,
                         tag_value=val,
                         total_submissions=num_total,
-                        correct_submissions=num_correct).to_string_tuple()
+                        correct_submissions=num_correct,
+                        correct_submissions_grades=num_correct_grade).to_string_tuple()
                     for prop_val in props_list_values:
                         yield StudentPropertiesAndTagsRecord(
                             course_id=course_id,
@@ -281,7 +298,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                             tag_name=tag_key,
                             tag_value=val,
                             total_submissions=prop_val['num_total'],
-                            correct_submissions=prop_val['num_correct']).to_string_tuple()
+                            correct_submissions=prop_val['num_correct'],
+                            correct_submissions_grades=prop_val['num_correct_grade']).to_string_tuple()
 
 
 class StudentPropertiesAndTagsRecord(Record):
@@ -300,6 +318,7 @@ class StudentPropertiesAndTagsRecord(Record):
     tag_value = StringField(length=255, nullable=True, description='Tag value')
     total_submissions = IntegerField(nullable=False, description='Number of total submissions')
     correct_submissions = IntegerField(nullable=False, description='Number of correct submissions')
+    correct_submissions_grades = FloatField(nullable=False, description='Number of correct submissions include partial correctness')
 
 
 @workflow_entry_point
