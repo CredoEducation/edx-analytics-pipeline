@@ -52,11 +52,12 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         submissions = event_data.get('submission', {})
         result_answers = []
         for answer_id, submission in submissions.items():
-            answer_data = {}
-            answer_value = answers[answer_id]
-            answer_data['answer_value'] = '|'.join(answer_value if isinstance(answer_value, list) else [answer_value])
-            answer_data['submission'] = answer_id
-            result_answers.append(answer_data)
+            if submission['input_type'] and submission['input_type'] in ['choicegroup', 'checkboxgroup']:
+                answer_data = {}
+                answer_value = answers[answer_id]
+                answer_data['answer_value'] = '|'.join(answer_value if isinstance(answer_value, list) else [answer_value])
+                answer_data['submission'] = answer_id
+                result_answers.append(answer_data)
         return result_answers
 
     def _count_answer_values(self, user_answers):
@@ -356,7 +357,7 @@ class StudentPropertiesAndTagsRecord(Record):
     total_submissions = IntegerField(nullable=False, description='Number of total submissions')
     correct_submissions = IntegerField(nullable=False, description='Number of correct submissions')
     correct_submissions_grades = FloatField(nullable=False, description='Number of correct submissions include partial correctness')
-    answers = StringField(length=21844, nullable=True, description='Distribution of answers')
+    answers = StringField(length=1024, nullable=True, description='Distribution of answers')
 
 
 @workflow_entry_point
