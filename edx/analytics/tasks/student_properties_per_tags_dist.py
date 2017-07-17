@@ -56,7 +56,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 answer_data = {}
                 answer_value = answers[answer_id]
                 answer_data['answer_value'] = '|'.join(answer_value if isinstance(answer_value, list) else [answer_value])
-                answer_data['submission'] = answer_id
+                answer_data['answer_display'] = '|'.join(submission['answer'] if isinstance(submission['answer'], list) else [submission['answer']])
                 result_answers.append(answer_data)
         return result_answers
 
@@ -65,7 +65,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         for user_answers in user_answers.values():
             for item in user_answers:
                 answer_value = item['answer_value']
-                result[answer_value] = result.get(answer_value, 0) + 1
+                result.setdefault(answer_value, item)
+                result[answer_value]['count'] = result[answer_value].get('count', 0) + 1
         return result
 
     def mapper(self, line):
