@@ -4,6 +4,7 @@ import luigi.hdfs
 import luigi.s3
 import hashlib
 import json
+import re
 
 import edx.analytics.tasks.util.eventlog as eventlog
 import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
@@ -56,7 +57,13 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 answer_data = {}
                 answer_value = answers[answer_id]
                 answer_data['answer_value'] = '|'.join(answer_value if isinstance(answer_value, list) else [answer_value])
-                answer_data['answer_display'] = '|'.join(submission['answer'] if isinstance(submission['answer'], list) else [submission['answer']])
+
+                answers_text = submission['answer'] if isinstance(submission['answer'], list) else [submission['answer']]
+                processed_answers = []
+                for item in answers_text:
+                    processed_answers.append(re.sub('<choicehint selected=\"true\">.*?</choicehint>', '', item.replace("\n", "")))
+                answer_data['answer_display'] = '|'.join(processed_answers)
+
                 result_answers.append(answer_data)
         return result_answers
 
