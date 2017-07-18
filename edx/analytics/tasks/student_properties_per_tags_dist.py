@@ -61,7 +61,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 answers_text = submission['answer'] if isinstance(submission['answer'], list) else [submission['answer']]
                 processed_answers = []
                 for item in answers_text:
-                    processed_answers.append(re.sub('<choicehint selected=\"true\">.*?</choicehint>', '', item.replace("\n", "")))
+                    processed_answers.append(re.sub('<choicehint\s*(selected=\"true\")*>.*?</choicehint>', '', item.replace("\n", "")))
                 answer_data['answer_display'] = '|'.join(processed_answers)
 
                 result_answers.append(answer_data)
