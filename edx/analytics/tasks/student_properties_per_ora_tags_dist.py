@@ -3,6 +3,7 @@ import luigi
 import luigi.hdfs
 import luigi.s3
 import hashlib
+import json
 
 import edx.analytics.tasks.util.eventlog as eventlog
 import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
@@ -102,7 +103,9 @@ class StudentPropertiesPerOraTagsPerCourse(
         latest_question_text = u''
         latest_tags = None
         latest_points_possible = None
-        props = {'registration': {}, 'enrollment': {}}
+
+        props = []
+        props_info = []
 
         # prepare base dicts for tags and properties
 
@@ -118,30 +121,28 @@ class StudentPropertiesPerOraTagsPerCourse(
             num_submissions_count += 1
 
             for prop_type, prop_dict in student_properties.iteritems():
-                for prop_name, prop_value in prop_dict.iteritems():
-                    if prop_name not in props[prop_type]:
-                        props[prop_type][prop_name] = {}
-                    if prop_value not in props[prop_type][prop_name]:
-                        props[prop_type][prop_name][prop_value] = {
-                            'total_earned_points': 0,
-                            'num_submissions_count': 0
-                        }
-                    props[prop_type][prop_name][prop_value]['total_earned_points'] += points_scored
-                    props[prop_type][prop_name][prop_value]['num_submissions_count'] += 1
+                if prop_dict not in props:
+                    props.append(prop_dict)
+                    props_info.append({
+                        'type': prop_type,
+                        'total_earned_points': 0,
+                        'num_submissions_count': 0
+                    })
+                prop_idx = props.index(prop_dict)
+                props_info[prop_idx]['total_earned_points'] += points_scored
+                props_info[prop_idx]['num_submissions_count'] += 1
 
-        # convert properties dict to the list
+        # convert properties dict to the JSON format
 
         props_list_values = []
-        for prop_type, prop_dict in props.iteritems():
-            for prop_name, prop_value_dict in prop_dict.iteritems():
-                for prop_value, prop_nums in prop_value_dict.iteritems():
-                    props_list_values.append({
-                        'type': prop_type,
-                        'name': prop_name,
-                        'value': prop_value,
-                        'total_earned_points': prop_nums['total_earned_points'],
-                        'num_submissions_count': prop_nums['num_submissions_count'],
-                    })
+        for i, prop_dict in enumerate(props):
+            props_list_values.append({
+                'props': prop_dict,
+                'type': props_info[i]['type'],
+                'total_earned_points': props_info[i]['total_earned_points'],
+                'num_submissions_count': props_info[i]['num_submissions_count']
+            })
+        props_json = json.dumps(props_list_values)
 
         # convert latest tags dict to extended dict. Example:
         # { 'lo': ['AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
@@ -178,34 +179,29 @@ class StudentPropertiesPerOraTagsPerCourse(
             question_text=latest_question_text,
             name_hash=name_hash,
             assessment_type=assessment_type,
-            property_type=None,
-            property_name=None,
-            property_value=None,
+            properties_data=None,
+            tag_name=None,
+            tag_value=None,
+            possible_points=latest_points_possible,
+            total_earned_points=total_earned_points,
+            submissions_count=num_submissions_count).to_string_tuple()
+        yield StudentPropertiesAndOraTagsRecord(
+            course_id=course_id,
+            org_id=org_id,
+            course=course,
+            run=run,
+            module_id=ora_id,
+            criterion_name=criterion_name,
+            question_text=latest_question_text,
+            name_hash=name_hash,
+            assessment_type=assessment_type,
+            properties_data=props_json,
             tag_name=None,
             tag_value=None,
             possible_points=latest_points_possible,
             total_earned_points=total_earned_points,
             submissions_count=num_submissions_count).to_string_tuple()
 
-        for prop_val in props_list_values:
-            yield StudentPropertiesAndOraTagsRecord(
-                course_id=course_id,
-                org_id=org_id,
-                course=course,
-                run=run,
-                module_id=ora_id,
-                criterion_name=criterion_name,
-                question_text=latest_question_text,
-                name_hash=name_hash,
-                assessment_type=assessment_type,
-                property_type=prop_val['type'],
-                property_name=prop_val['name'],
-                property_value=prop_val['value'],
-                tag_name=None,
-                tag_value=None,
-                possible_points=latest_points_possible,
-                total_earned_points=prop_val['total_earned_points'],
-                submissions_count=prop_val['num_submissions_count']).to_string_tuple()
         if latest_tags:
             for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
                 for val in tags_extended_lst:
@@ -219,33 +215,28 @@ class StudentPropertiesPerOraTagsPerCourse(
                         question_text=latest_question_text,
                         name_hash=name_hash,
                         assessment_type=assessment_type,
-                        property_type=None,
-                        property_name=None,
-                        property_value=None,
+                        properties_data=None,
                         tag_name=tag_key,
                         tag_value=val,
                         possible_points=latest_points_possible,
                         total_earned_points=total_earned_points,
                         submissions_count=num_submissions_count).to_string_tuple()
-                    for prop_val in props_list_values:
-                        yield StudentPropertiesAndOraTagsRecord(
-                            course_id=course_id,
-                            org_id=org_id,
-                            course=course,
-                            run=run,
-                            module_id=ora_id,
-                            criterion_name=criterion_name,
-                            question_text=latest_question_text,
-                            name_hash=name_hash,
-                            assessment_type=assessment_type,
-                            property_type=prop_val['type'],
-                            property_name=prop_val['name'],
-                            property_value=prop_val['value'],
-                            tag_name=tag_key,
-                            tag_value=val,
-                            possible_points=latest_points_possible,
-                            total_earned_points=prop_val['total_earned_points'],
-                            submissions_count=prop_val['num_submissions_count']).to_string_tuple()
+                    yield StudentPropertiesAndOraTagsRecord(
+                        course_id=course_id,
+                        org_id=org_id,
+                        course=course,
+                        run=run,
+                        module_id=ora_id,
+                        criterion_name=criterion_name,
+                        question_text=latest_question_text,
+                        name_hash=name_hash,
+                        assessment_type=assessment_type,
+                        properties_data=props_json,
+                        tag_name=tag_key,
+                        tag_value=val,
+                        possible_points=latest_points_possible,
+                        total_earned_points=total_earned_points,
+                        submissions_count=num_submissions_count).to_string_tuple()
 
 
 class StudentPropertiesAndOraTagsRecord(Record):
@@ -258,9 +249,7 @@ class StudentPropertiesAndOraTagsRecord(Record):
     question_text = StringField(length=21844, nullable=True, description='Question Text')
     name_hash = StringField(length=255, nullable=True, description='Name Hash')
     assessment_type = StringField(length=255, nullable=False, description='Assessment type')
-    property_type = StringField(length=255, nullable=True, description='Property type')
-    property_name = StringField(length=255, nullable=True, description='Property name')
-    property_value = StringField(length=255, nullable=True, description='Property value')
+    properties_data = StringField(length=21844, nullable=True, description='Properties data in JSON format')
     tag_name = StringField(length=255, nullable=True, description='Tag key')
     tag_value = StringField(length=255, nullable=True, description='Tag value')
     possible_points = IntegerField(nullable=False, description='Possible points')

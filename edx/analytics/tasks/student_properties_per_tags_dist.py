@@ -156,7 +156,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         num_total = 0
         num_correct = 0
         num_correct_grade = 0
-        num_answers = {}
+        all_answers_json = None
 
         user2total = {}
         user2correct = {}
@@ -168,11 +168,14 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         latest_display_name = u''
         latest_question_text = u''
         latest_tags = None
-        props = {'registration': {}, 'enrollment': {}}
+
+        props = []
+        props_info = []
 
         # prepare base dicts for tags and properties
 
-        for timestamp, saved_tags, student_properties, is_correct, grade, user_id, display_name, question_text, answers in values:
+        for timestamp, saved_tags, student_properties, is_correct,\
+                grade, user_id, display_name, question_text, answers in values:
 
             if latest_timestamp is None or timestamp > latest_timestamp:
                 latest_timestamp = timestamp
@@ -192,28 +195,24 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             user2total[user_id] = 1
 
             for prop_type, prop_dict in student_properties.iteritems():
-                for prop_name, prop_value in prop_dict.iteritems():
-                    if prop_name not in props[prop_type]:
-                        props[prop_type][prop_name] = {}
-                    if prop_value not in props[prop_type][prop_name]:
-                        props[prop_type][prop_name][prop_value] = {
-                            'num_total': {},
-                            'num_correct': {},
-                            'num_correct_grade': {},
-                            'user_last_timestamp': {},
-                            'answers': {},
-                        }
-
-                    prop_current_user_last_timestamp = props[prop_type][prop_name][prop_value]['user_last_timestamp']\
-                        .get(user_id, None)
-
-                    if prop_current_user_last_timestamp is None or timestamp > prop_current_user_last_timestamp:
-                        props[prop_type][prop_name][prop_value]['user_last_timestamp'][user_id] = timestamp
-                        props[prop_type][prop_name][prop_value]['num_correct'][user_id] = 1 if is_correct else 0
-                        props[prop_type][prop_name][prop_value]['num_correct_grade'][user_id] = grade
-                        props[prop_type][prop_name][prop_value]['answers'][user_id] = answers
-
-                    props[prop_type][prop_name][prop_value]['num_total'][user_id] = 1
+                if prop_dict not in props:
+                    props.append(prop_dict)
+                    props_info.append({
+                        'type': prop_type,
+                        'num_total': {},
+                        'num_correct': {},
+                        'num_correct_grade': {},
+                        'answers': {},
+                        'user_last_timestamp': {},
+                    })
+                prop_idx = props.index(prop_dict)
+                prop_current_user_last_timestamp = props_info[prop_idx]['user_last_timestamp'].get(user_id, None)
+                if prop_current_user_last_timestamp is None or timestamp > prop_current_user_last_timestamp:
+                    props_info[prop_idx]['user_last_timestamp'][user_id] = timestamp
+                    props_info[prop_idx]['num_correct'][user_id] = 1 if is_correct else 0
+                    props_info[prop_idx]['num_correct_grade'][user_id] = grade
+                    props_info[prop_idx]['answers'][user_id] = answers
+                props_info[prop_idx]['num_total'][user_id] = 1
 
         if user2total:
             num_total = sum(user2total.values())
@@ -225,22 +224,22 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             num_correct_grade = sum(user2correct_grade.values())
 
         if user2answers:
-            num_answers = self._count_answer_values(user2answers)
+            all_answers = self._count_answer_values(user2answers)
+            all_answers_json = json.dumps(all_answers)
 
-        # convert properties dict to the list
+        # convert properties dict to the JSON format
+
         props_list_values = []
-        for prop_type, prop_dict in props.iteritems():
-            for prop_name, prop_value_dict in prop_dict.iteritems():
-                for prop_value, prop_nums in prop_value_dict.iteritems():
-                    props_list_values.append({
-                        'type': prop_type,
-                        'name': prop_name,
-                        'value': prop_value,
-                        'num_total': sum(prop_nums['num_total'].values()),
-                        'num_correct': sum(prop_nums['num_correct'].values()),
-                        'num_correct_grade': sum(prop_nums['num_correct_grade'].values()),
-                        'answers': self._count_answer_values(prop_nums['answers']),
-                    })
+        for i, prop_dict in enumerate(props):
+            props_list_values.append({
+                'props': prop_dict,
+                'type': props_info[i]['type'],
+                'total': sum(props_info[i]['num_total'].values()),
+                'correct': sum(props_info[i]['num_correct'].values()),
+                'correct_grade': sum(props_info[i]['num_correct_grade'].values()),
+                'answers': self._count_answer_values(props_info[i]['answers']),
+            })
+        props_json = json.dumps(props_list_values)
 
         # convert latest tags dict to extended dict. Example:
         # { 'lo': ['AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
@@ -277,35 +276,30 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             display_name=latest_display_name,
             question_text=latest_question_text,
             name_hash=name_hash,
-            property_type=None,
-            property_name=None,
-            property_value=None,
+            properties_data=None,
             tag_name=None,
             tag_value=None,
             total_submissions=num_total,
             correct_submissions=num_correct,
             correct_submissions_grades=num_correct_grade,
-            answers=json.dumps(num_answers)).to_string_tuple()
+            answers=all_answers_json).to_string_tuple()
+        yield StudentPropertiesAndTagsRecord(
+            course_id=course_id,
+            org_id=org_id,
+            course=course,
+            run=run,
+            module_id=problem_id,
+            display_name=latest_display_name,
+            question_text=latest_question_text,
+            name_hash=name_hash,
+            properties_data=props_json,
+            tag_name=None,
+            tag_value=None,
+            total_submissions=num_total,
+            correct_submissions=num_correct,
+            correct_submissions_grades=num_correct_grade,
+            answers=all_answers_json).to_string_tuple()
 
-        for prop_val in props_list_values:
-            yield StudentPropertiesAndTagsRecord(
-                course_id=course_id,
-                org_id=org_id,
-                course=course,
-                run=run,
-                module_id=problem_id,
-                display_name=latest_display_name,
-                question_text=latest_question_text,
-                name_hash=name_hash,
-                property_type=prop_val['type'],
-                property_name=prop_val['name'],
-                property_value=prop_val['value'],
-                tag_name=None,
-                tag_value=None,
-                total_submissions=prop_val['num_total'],
-                correct_submissions=prop_val['num_correct'],
-                correct_submissions_grades=prop_val['num_correct_grade'],
-                answers=json.dumps(prop_val['answers'])).to_string_tuple()
         if latest_tags:
             for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
                 for val in tags_extended_lst:
@@ -318,34 +312,29 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         display_name=latest_display_name,
                         question_text=latest_question_text,
                         name_hash=name_hash,
-                        property_type=None,
-                        property_name=None,
-                        property_value=None,
+                        properties_data=None,
                         tag_name=tag_key,
                         tag_value=val,
                         total_submissions=num_total,
                         correct_submissions=num_correct,
                         correct_submissions_grades=num_correct_grade,
-                        answers=json.dumps(num_answers)).to_string_tuple()
-                    for prop_val in props_list_values:
-                        yield StudentPropertiesAndTagsRecord(
-                            course_id=course_id,
-                            org_id=org_id,
-                            course=course,
-                            run=run,
-                            module_id=problem_id,
-                            display_name=latest_display_name,
-                            question_text=latest_question_text,
-                            name_hash=name_hash,
-                            property_type=prop_val['type'],
-                            property_name=prop_val['name'],
-                            property_value=prop_val['value'],
-                            tag_name=tag_key,
-                            tag_value=val,
-                            total_submissions=prop_val['num_total'],
-                            correct_submissions=prop_val['num_correct'],
-                            correct_submissions_grades=prop_val['num_correct_grade'],
-                            answers=json.dumps(prop_val['answers'])).to_string_tuple()
+                        answers=all_answers_json).to_string_tuple()
+                    yield StudentPropertiesAndTagsRecord(
+                        course_id=course_id,
+                        org_id=org_id,
+                        course=course,
+                        run=run,
+                        module_id=problem_id,
+                        display_name=latest_display_name,
+                        question_text=latest_question_text,
+                        name_hash=name_hash,
+                        properties_data=props_json,
+                        tag_name=tag_key,
+                        tag_value=val,
+                        total_submissions=num_total,
+                        correct_submissions=num_correct,
+                        correct_submissions_grades=num_correct_grade,
+                        answers=all_answers_json).to_string_tuple()
 
 
 class StudentPropertiesAndTagsRecord(Record):
@@ -357,9 +346,7 @@ class StudentPropertiesAndTagsRecord(Record):
     display_name = StringField(length=2048, nullable=True, description='Problem Display Name')
     question_text = StringField(length=21844, nullable=True, description='Question Text')
     name_hash = StringField(length=255, nullable=True, description='Name Hash')
-    property_type = StringField(length=255, nullable=True, description='Property type')
-    property_name = StringField(length=255, nullable=True, description='Property name')
-    property_value = StringField(length=255, nullable=True, description='Property value')
+    properties_data = StringField(length=21844, nullable=True, description='Properties data in JSON format')
     tag_name = StringField(length=255, nullable=True, description='Tag key')
     tag_value = StringField(length=255, nullable=True, description='Tag value')
     total_submissions = IntegerField(nullable=False, description='Number of total submissions')
