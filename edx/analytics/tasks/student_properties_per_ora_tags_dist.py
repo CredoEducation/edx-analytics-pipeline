@@ -189,22 +189,23 @@ class StudentPropertiesPerOraTagsPerCourse(
             possible_points=latest_points_possible,
             total_earned_points=total_earned_points,
             submissions_count=num_submissions_count).to_string_tuple()
-        yield StudentPropertiesAndOraTagsRecord(
-            course_id=course_id,
-            org_id=org_id,
-            course=course,
-            run=run,
-            module_id=ora_id,
-            criterion_name=criterion_name,
-            question_text=latest_question_text,
-            name_hash=name_hash,
-            assessment_type=assessment_type,
-            properties_data=props_json,
-            tag_name=None,
-            tag_value=None,
-            possible_points=latest_points_possible,
-            total_earned_points=total_earned_points,
-            submissions_count=num_submissions_count).to_string_tuple()
+        if props_json:
+            yield StudentPropertiesAndOraTagsRecord(
+                course_id=course_id,
+                org_id=org_id,
+                course=course,
+                run=run,
+                module_id=ora_id,
+                criterion_name=criterion_name,
+                question_text=latest_question_text,
+                name_hash=name_hash,
+                assessment_type=assessment_type,
+                properties_data=props_json,
+                tag_name=None,
+                tag_value=None,
+                possible_points=latest_points_possible,
+                total_earned_points=total_earned_points,
+                submissions_count=num_submissions_count).to_string_tuple()
 
         if latest_tags:
             for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
@@ -225,22 +226,23 @@ class StudentPropertiesPerOraTagsPerCourse(
                         possible_points=latest_points_possible,
                         total_earned_points=total_earned_points,
                         submissions_count=num_submissions_count).to_string_tuple()
-                    yield StudentPropertiesAndOraTagsRecord(
-                        course_id=course_id,
-                        org_id=org_id,
-                        course=course,
-                        run=run,
-                        module_id=ora_id,
-                        criterion_name=criterion_name,
-                        question_text=latest_question_text,
-                        name_hash=name_hash,
-                        assessment_type=assessment_type,
-                        properties_data=props_json,
-                        tag_name=tag_key,
-                        tag_value=val,
-                        possible_points=latest_points_possible,
-                        total_earned_points=total_earned_points,
-                        submissions_count=num_submissions_count).to_string_tuple()
+                    if props_json:
+                        yield StudentPropertiesAndOraTagsRecord(
+                            course_id=course_id,
+                            org_id=org_id,
+                            course=course,
+                            run=run,
+                            module_id=ora_id,
+                            criterion_name=criterion_name,
+                            question_text=latest_question_text,
+                            name_hash=name_hash,
+                            assessment_type=assessment_type,
+                            properties_data=props_json,
+                            tag_name=tag_key,
+                            tag_value=val,
+                            possible_points=latest_points_possible,
+                            total_earned_points=total_earned_points,
+                            submissions_count=num_submissions_count).to_string_tuple()
 
 
 class StudentPropertiesAndOraTagsRecord(Record):
