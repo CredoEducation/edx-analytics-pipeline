@@ -143,7 +143,8 @@ class StudentPropertiesPerOraTagsPerCourse(
                     'props': prop_dict,
                     'type': props_info[i]['type'],
                     'total_earned_points': props_info[i]['total_earned_points'],
-                    'num_submissions_count': props_info[i]['num_submissions_count']
+                    'num_submissions_count': props_info[i]['num_submissions_count'],
+                    'points_possible': latest_points_possible
                 })
             props_json = json.dumps(props_list_values)
 
