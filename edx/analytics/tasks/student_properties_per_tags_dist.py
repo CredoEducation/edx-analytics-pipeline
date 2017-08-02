@@ -123,7 +123,10 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         is_correct = event_data.get('success') == 'correct'
         earned_grade = float(event_data.get('grade', 0))
         max_grade = float(event_data.get('max_grade', 0))
-        grade = earned_grade / max_grade
+        if max_grade != 0:
+            grade = earned_grade / max_grade
+        else:
+            grade = 1 if is_correct else 0
 
         display_name = event.get('context').get('module', {}).get('display_name', '')
         question_text = self._get_question_text(event_data)
