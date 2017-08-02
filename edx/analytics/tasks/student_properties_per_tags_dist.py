@@ -173,6 +173,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         props = []
         props_info = []
+        props_json = None
 
         # prepare base dicts for tags and properties
 
@@ -197,24 +198,25 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             user2total[user_id] = 1
 
             for prop_type, prop_dict in student_properties.iteritems():
-                if prop_dict not in props:
-                    props.append(prop_dict)
-                    props_info.append({
-                        'type': prop_type,
-                        'num_total': {},
-                        'num_correct': {},
-                        'num_correct_grade': {},
-                        'answers': {},
-                        'user_last_timestamp': {},
-                    })
-                prop_idx = props.index(prop_dict)
-                prop_current_user_last_timestamp = props_info[prop_idx]['user_last_timestamp'].get(user_id, None)
-                if prop_current_user_last_timestamp is None or timestamp > prop_current_user_last_timestamp:
-                    props_info[prop_idx]['user_last_timestamp'][user_id] = timestamp
-                    props_info[prop_idx]['num_correct'][user_id] = 1 if is_correct else 0
-                    props_info[prop_idx]['num_correct_grade'][user_id] = grade
-                    props_info[prop_idx]['answers'][user_id] = answers
-                props_info[prop_idx]['num_total'][user_id] = 1
+                if prop_dict:
+                    if prop_dict not in props:
+                        props.append(prop_dict)
+                        props_info.append({
+                            'type': prop_type,
+                            'num_total': {},
+                            'num_correct': {},
+                            'num_correct_grade': {},
+                            'answers': {},
+                            'user_last_timestamp': {},
+                        })
+                    prop_idx = props.index(prop_dict)
+                    prop_current_user_last_timestamp = props_info[prop_idx]['user_last_timestamp'].get(user_id, None)
+                    if prop_current_user_last_timestamp is None or timestamp > prop_current_user_last_timestamp:
+                        props_info[prop_idx]['user_last_timestamp'][user_id] = timestamp
+                        props_info[prop_idx]['num_correct'][user_id] = 1 if is_correct else 0
+                        props_info[prop_idx]['num_correct_grade'][user_id] = grade
+                        props_info[prop_idx]['answers'][user_id] = answers
+                    props_info[prop_idx]['num_total'][user_id] = 1
 
         if user2total:
             num_total = sum(user2total.values())
@@ -232,16 +234,17 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         # convert properties dict to the JSON format
 
         props_list_values = []
-        for i, prop_dict in enumerate(props):
-            props_list_values.append({
-                'props': prop_dict,
-                'type': props_info[i]['type'],
-                'total': sum(props_info[i]['num_total'].values()),
-                'correct': sum(props_info[i]['num_correct'].values()),
-                'correct_grade': sum(props_info[i]['num_correct_grade'].values()),
-                'answers': self._count_answer_values(props_info[i]['answers']),
-            })
-        props_json = json.dumps(props_list_values)
+        if len(props) > 0:
+            for i, prop_dict in enumerate(props):
+                props_list_values.append({
+                    'props': prop_dict,
+                    'type': props_info[i]['type'],
+                    'total': sum(props_info[i]['num_total'].values()),
+                    'correct': sum(props_info[i]['num_correct'].values()),
+                    'correct_grade': sum(props_info[i]['num_correct_grade'].values()),
+                    'answers': self._count_answer_values(props_info[i]['answers']),
+                })
+            props_json = json.dumps(props_list_values)
 
         # convert latest tags dict to extended dict. Example:
         # { 'lo': ['AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
@@ -393,5 +396,4 @@ class StudentPropertiesAndTagsDistributionWorkflow(StudentPropertiesPerTagsPerCo
         return [
             ('course_id',),
             ('module_id',),
-            ('tag_value', 'property_name', 'property_value'),
         ]

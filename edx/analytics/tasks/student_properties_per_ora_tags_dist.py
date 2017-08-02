@@ -106,6 +106,7 @@ class StudentPropertiesPerOraTagsPerCourse(
 
         props = []
         props_info = []
+        props_json = None
 
         # prepare base dicts for tags and properties
 
@@ -121,28 +122,30 @@ class StudentPropertiesPerOraTagsPerCourse(
             num_submissions_count += 1
 
             for prop_type, prop_dict in student_properties.iteritems():
-                if prop_dict not in props:
-                    props.append(prop_dict)
-                    props_info.append({
-                        'type': prop_type,
-                        'total_earned_points': 0,
-                        'num_submissions_count': 0
-                    })
-                prop_idx = props.index(prop_dict)
-                props_info[prop_idx]['total_earned_points'] += points_scored
-                props_info[prop_idx]['num_submissions_count'] += 1
+                if prop_dict:
+                    if prop_dict not in props:
+                        props.append(prop_dict)
+                        props_info.append({
+                            'type': prop_type,
+                            'total_earned_points': 0,
+                            'num_submissions_count': 0
+                        })
+                    prop_idx = props.index(prop_dict)
+                    props_info[prop_idx]['total_earned_points'] += points_scored
+                    props_info[prop_idx]['num_submissions_count'] += 1
 
         # convert properties dict to the JSON format
 
         props_list_values = []
-        for i, prop_dict in enumerate(props):
-            props_list_values.append({
-                'props': prop_dict,
-                'type': props_info[i]['type'],
-                'total_earned_points': props_info[i]['total_earned_points'],
-                'num_submissions_count': props_info[i]['num_submissions_count']
-            })
-        props_json = json.dumps(props_list_values)
+        if len(props) > 0:
+            for i, prop_dict in enumerate(props):
+                props_list_values.append({
+                    'props': prop_dict,
+                    'type': props_info[i]['type'],
+                    'total_earned_points': props_info[i]['total_earned_points'],
+                    'num_submissions_count': props_info[i]['num_submissions_count']
+                })
+            props_json = json.dumps(props_list_values)
 
         # convert latest tags dict to extended dict. Example:
         # { 'lo': ['AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
