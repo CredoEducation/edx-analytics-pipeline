@@ -281,30 +281,13 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             display_name=latest_display_name,
             question_text=latest_question_text,
             name_hash=name_hash,
-            properties_data=None,
+            properties_data=props_json,
             tag_name=None,
             tag_value=None,
             total_submissions=num_total,
             correct_submissions=num_correct,
             correct_submissions_grades=num_correct_grade,
             answers=all_answers_json).to_string_tuple()
-        if props_json:
-            yield StudentPropertiesAndTagsRecord(
-                course_id=course_id,
-                org_id=org_id,
-                course=course,
-                run=run,
-                module_id=problem_id,
-                display_name=latest_display_name,
-                question_text=latest_question_text,
-                name_hash=name_hash,
-                properties_data=props_json,
-                tag_name=None,
-                tag_value=None,
-                total_submissions=num_total,
-                correct_submissions=num_correct,
-                correct_submissions_grades=num_correct_grade,
-                answers=all_answers_json).to_string_tuple()
 
         if latest_tags:
             for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
@@ -318,30 +301,13 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         display_name=latest_display_name,
                         question_text=latest_question_text,
                         name_hash=name_hash,
-                        properties_data=None,
+                        properties_data=props_json,
                         tag_name=tag_key,
                         tag_value=val,
                         total_submissions=num_total,
                         correct_submissions=num_correct,
                         correct_submissions_grades=num_correct_grade,
                         answers=all_answers_json).to_string_tuple()
-                    if props_json:
-                        yield StudentPropertiesAndTagsRecord(
-                            course_id=course_id,
-                            org_id=org_id,
-                            course=course,
-                            run=run,
-                            module_id=problem_id,
-                            display_name=latest_display_name,
-                            question_text=latest_question_text,
-                            name_hash=name_hash,
-                            properties_data=props_json,
-                            tag_name=tag_key,
-                            tag_value=val,
-                            total_submissions=num_total,
-                            correct_submissions=num_correct,
-                            correct_submissions_grades=num_correct_grade,
-                            answers=all_answers_json).to_string_tuple()
 
 
 class StudentPropertiesAndTagsRecord(Record):
