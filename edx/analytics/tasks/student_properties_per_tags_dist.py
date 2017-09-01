@@ -19,6 +19,24 @@ from edx.analytics.tasks.util.record import Record, StringField, IntegerField, F
 log = logging.getLogger(__name__)
 
 
+def get_value_from_student_properties(key, properties):
+    types = ['registration', 'enrollment']
+    key_updated = key.strip().lower()
+    new_value = None
+    new_properties = properties.copy()
+
+    for tp in types:
+        if tp in new_properties:
+            tmp_properties = {}
+            for k in new_properties[tp]:
+                tmp_properties[k.strip().lower()] = k
+            for tk, tv in tmp_properties.iteritems():
+                if tk == key_updated:
+                    new_value = new_properties[tp][tv]
+                    del new_properties[tp][tv]
+    return new_value, new_properties
+
+
 class StudentPropertiesPerTagsPerCourseDownstreamMixin(object):
     """
     Base class for tags distribution calculations.
@@ -136,9 +154,15 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
 
+        overload_items = {'course': course, 'term': run}
+        for k in overload_items:
+            new_value, new_properties = get_value_from_student_properties(k, student_properties)
+            if new_value:
+                overload_items[k], student_properties = new_value, new_properties
+
         answers = self._get_answer_values(event_data)
 
-        yield (course_id, org_id, course, run, problem_id),\
+        yield (course_id, org_id, overload_items['course'], overload_items['term'], problem_id),\
               (timestamp, saved_tags, student_properties, is_correct, grade, int(user_id), display_name, question_text,
                answers)
 

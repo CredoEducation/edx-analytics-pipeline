@@ -13,7 +13,8 @@ from edx.analytics.tasks.mysql_load import MysqlInsertTask
 from edx.analytics.tasks.decorators import workflow_entry_point
 from edx.analytics.tasks.pathutil import EventLogSelectionDownstreamMixin, EventLogSelectionMixin
 from edx.analytics.tasks.util.record import Record, StringField, IntegerField
-from edx.analytics.tasks.student_properties_per_tags_dist import StudentPropertiesPerTagsPerCourseDownstreamMixin
+from edx.analytics.tasks.student_properties_per_tags_dist import StudentPropertiesPerTagsPerCourseDownstreamMixin, \
+    get_value_from_student_properties
 
 
 log = logging.getLogger(__name__)
@@ -70,6 +71,12 @@ class StudentPropertiesPerOraTagsPerCourse(
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
 
+        overload_items = {'course': course, 'term': run}
+        for k in overload_items:
+            new_value, new_properties = get_value_from_student_properties(k, student_properties)
+            if new_value:
+                overload_items[k], student_properties = new_value, new_properties
+
         question_text = u''
         prompts_list = []
         prompts = event.get('event', {}).get('prompts', [])
@@ -89,7 +96,7 @@ class StudentPropertiesPerOraTagsPerCourse(
             part_points_scored = int(part.get('option', {}).get('points', 0))
             part_saved_tags = saved_tags.get(part_criterion_name, {})
 
-            yield (course_id, org_id, course, run, ora_id, assessment_type, part_criterion_name),\
+            yield (course_id, org_id, overload_items['course'], overload_items['term'], ora_id, assessment_type, part_criterion_name),\
                   (timestamp, part_saved_tags, student_properties, part_points_possible, part_points_scored,
                    question_text)
 
