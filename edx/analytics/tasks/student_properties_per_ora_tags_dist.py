@@ -5,6 +5,8 @@ import luigi.s3
 import hashlib
 import json
 
+from collections import defaultdict
+
 import edx.analytics.tasks.util.eventlog as eventlog
 import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
 from edx.analytics.tasks.url import get_target_from_url
@@ -27,6 +29,23 @@ class StudentPropertiesPerOraTagsPerCourse(
 
     def output(self):
         return get_target_from_url(self.output_root)
+
+    def _dist_earned_points_info(self, points):
+        dist = defaultdict(int)
+        result = []
+        for p in points:
+            dist[(p['points'], p['name'])] += 1
+        for r in dist:
+            points, name = r
+            result.append({
+                'points': points,
+                'name': name,
+                'count': dist[r]
+            })
+        return result
+
+    def _sum_earned_points(self, points):
+        return sum([p['points'] for p in points])
 
     def mapper(self, line):
         value = self.get_event_and_date_string(line)
@@ -93,7 +112,7 @@ class StudentPropertiesPerOraTagsPerCourse(
         for part in parts:
             part_criterion_name = part.get('criterion', {}).get('name', None)
             part_points_possible = int(part.get('criterion', {}).get('points_possible', 0))
-            part_points_scored = int(part.get('option', {}).get('points', 0))
+            part_points_scored = part.get('option', {})
             part_saved_tags = saved_tags.get(part_criterion_name, {})
 
             yield (course_id, org_id, overload_items['course'], overload_items['term'], ora_id, assessment_type, part_criterion_name),\
@@ -103,7 +122,7 @@ class StudentPropertiesPerOraTagsPerCourse(
     def reducer(self, key, values):
         course_id, org_id, course, run, ora_id, assessment_type, criterion_name = key
 
-        total_earned_points = 0
+        total_earned_points_info = []
         num_submissions_count = 0
 
         latest_timestamp = None
@@ -125,7 +144,7 @@ class StudentPropertiesPerOraTagsPerCourse(
                 latest_tags = saved_tags.copy() if saved_tags else None
                 latest_points_possible = points_possible
 
-            total_earned_points += points_scored
+            total_earned_points_info.append(points_scored)
             num_submissions_count += 1
 
             for prop_type, prop_dict in student_properties.iteritems():
@@ -134,11 +153,11 @@ class StudentPropertiesPerOraTagsPerCourse(
                         props.append(prop_dict)
                         props_info.append({
                             'type': prop_type,
-                            'total_earned_points': 0,
-                            'num_submissions_count': 0
+                            'total_earned_points_info': [],
+                            'num_submissions_count': 0,
                         })
                     prop_idx = props.index(prop_dict)
-                    props_info[prop_idx]['total_earned_points'] += points_scored
+                    props_info[prop_idx]['total_earned_points_info'].append(points_scored)
                     props_info[prop_idx]['num_submissions_count'] += 1
 
         # convert properties dict to the JSON format
@@ -149,7 +168,8 @@ class StudentPropertiesPerOraTagsPerCourse(
                 props_list_values.append({
                     'props': prop_dict,
                     'type': props_info[i]['type'],
-                    'total_earned_points': props_info[i]['total_earned_points'],
+                    'total_earned_points': self._sum_earned_points(props_info[i]['total_earned_points_info']),
+                    'total_earned_points_dist': self._dist_earned_points_info(props_info[i]['total_earned_points_info']),
                     'num_submissions_count': props_info[i]['num_submissions_count'],
                     'points_possible': latest_points_possible
                 })
@@ -194,7 +214,8 @@ class StudentPropertiesPerOraTagsPerCourse(
             tag_name=None,
             tag_value=None,
             possible_points=latest_points_possible,
-            total_earned_points=total_earned_points,
+            total_earned_points=self._sum_earned_points(total_earned_points_info),
+            total_earned_points_dist=json.dumps(self._dist_earned_points_info(total_earned_points_info)),
             submissions_count=num_submissions_count).to_string_tuple()
 
         if latest_tags:
@@ -214,7 +235,8 @@ class StudentPropertiesPerOraTagsPerCourse(
                         tag_name=tag_key,
                         tag_value=val,
                         possible_points=latest_points_possible,
-                        total_earned_points=total_earned_points,
+                        total_earned_points=self._sum_earned_points(total_earned_points_info),
+                        total_earned_points_dist=json.dumps(self._dist_earned_points_info(total_earned_points_info)),
                         submissions_count=num_submissions_count).to_string_tuple()
 
 
@@ -234,6 +256,7 @@ class StudentPropertiesAndOraTagsRecord(Record):
     possible_points = IntegerField(nullable=False, description='Possible points')
     total_earned_points = IntegerField(nullable=False, description='Total earned points')
     submissions_count = IntegerField(nullable=False, description='Submissions count')
+    total_earned_points_dist = StringField(length=21844, nullable=True, description='Distribution of earned points')
 
 
 @workflow_entry_point
