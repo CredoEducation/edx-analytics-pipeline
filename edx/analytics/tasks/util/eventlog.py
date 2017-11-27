@@ -291,3 +291,13 @@ def get_course_id(event, from_url=False):
             return unicode(course_key)
 
     return None
+
+
+def get_user_id(event):
+    event_context = event.get('context')
+    if event_context is None:
+        return None
+    user_id = event_context.get('user_id', None)
+    if user_id:
+        return int(user_id)
+    return None

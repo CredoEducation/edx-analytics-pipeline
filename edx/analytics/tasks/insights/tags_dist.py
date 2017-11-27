@@ -6,15 +6,14 @@ import luigi
 import luigi.hdfs
 import luigi.s3
 
-from edx.analytics.tasks.common.mapreduce import MapReduceJobTask, MapReduceJobTaskMixin
-from edx.analytics.tasks.common.mysql_load import MysqlInsertTask
-from edx.analytics.tasks.common.pathutil import EventLogSelectionDownstreamMixin, EventLogSelectionMixin
-
-from edx.analytics.tasks.util.decorators import workflow_entry_point
 import edx.analytics.tasks.util.eventlog as eventlog
 import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
-from edx.analytics.tasks.util.record import Record, StringField, IntegerField
 from edx.analytics.tasks.util.url import get_target_from_url
+from edx.analytics.tasks.common.mapreduce import MapReduceJobTask, MapReduceJobTaskMixin
+from edx.analytics.tasks.common.mysql_load import MysqlInsertTask
+from edx.analytics.tasks.util.decorators import workflow_entry_point
+from edx.analytics.tasks.common.pathutil import EventLogSelectionDownstreamMixin, EventLogSelectionMixin
+from edx.analytics.tasks.util.record import Record, StringField, IntegerField
 
 
 log = logging.getLogger(__name__)
@@ -63,6 +62,10 @@ class TagsDistributionPerCourse(
         if not course_id:
             return
 
+        user_id = event.get('context').get('user_id', None)
+        if not user_id:
+            return
+
         org_id = opaque_key_util.get_org_id_for_course(course_id)
 
         event_data = eventlog.get_event_data(event)
@@ -77,7 +80,7 @@ class TagsDistributionPerCourse(
 
         saved_tags = event.get('context').get('asides', {}).get('tagging_aside', {}).get('saved_tags', {})
 
-        yield (course_id, org_id, problem_id), (timestamp, saved_tags, is_correct)
+        yield (course_id, org_id, problem_id), (timestamp, saved_tags, is_correct, int(user_id))
 
     def reducer(self, key, values):
         """
@@ -93,22 +96,33 @@ class TagsDistributionPerCourse(
         num_correct = 0
         num_total = 0
 
+        user2total = {}
+        user2correct = {}
+        user2last_timestamp = {}
+
         latest_timestamp = None
         latest_tags = None
 
-        for timestamp, saved_tags, is_correct in values:
+        for timestamp, saved_tags, is_correct, user_id in values:
             if latest_timestamp is None or timestamp > latest_timestamp:
                 latest_timestamp = timestamp
                 latest_tags = saved_tags.copy() if saved_tags else None
 
-            if is_correct:
-                num_correct += 1
+            current_user_last_timestamp = user2last_timestamp.get(user_id, None)
+            if current_user_last_timestamp is None or timestamp > current_user_last_timestamp:
+                user2last_timestamp[user_id] = timestamp
+                user2correct[user_id] = 1 if is_correct else 0
 
-            num_total += 1
+            user2total[user_id] = 1
 
         if not latest_tags:
             return
         else:
+            if user2total:
+                num_total = sum(user2total.values())
+            if user2correct:
+                num_correct = sum(user2correct.values())
+
             for tag_key, tag_val in latest_tags.iteritems():
                 tag_val_lst = [tag_val] if isinstance(tag_val, basestring) else tag_val
                 for val in tag_val_lst:
