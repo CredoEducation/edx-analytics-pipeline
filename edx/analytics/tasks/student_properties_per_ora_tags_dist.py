@@ -91,10 +91,13 @@ class StudentPropertiesPerOraTagsPerCourse(
             .get('student_properties', {})
 
         overload_items = {'course': course, 'term': run}
-        for k in overload_items:
+        custom_props_to_overload_items = {'course': 'course', 'courses': 'course',
+                                          'term': 'term', 'terms': 'term',
+                                          'run': 'term', 'runs': 'term'}
+        for k, overload_item_key in custom_props_to_overload_items.iteritems():
             new_value, new_properties = get_value_from_student_properties(k, student_properties)
             if new_value:
-                overload_items[k], student_properties = new_value, new_properties
+                overload_items[overload_item_key], student_properties = new_value, new_properties
 
         question_text = u''
         prompts_list = []
