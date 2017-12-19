@@ -79,7 +79,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 answers_text = submission['answer'] if isinstance(submission['answer'], list) else [submission['answer']]
                 processed_answers = []
                 for item in answers_text:
-                    processed_answers.append(re.sub('<choicehint\s*(selected=\"true\")*>.*?</choicehint>', '', item.replace("\n", "")))
+                    processed_answers.append(re.sub('<choicehint\s*(selected=\"true\")*>.*?</choicehint>', '',
+                                                    item.replace("\n", "").replace("\t", "").replace("\r", "")))
                 answer_data['answer_display'] = '|'.join(processed_answers)
 
                 result_answers.append(answer_data)
@@ -145,7 +146,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         display_name = event.get('context').get('module', {}).get('display_name', '')
         question_text = self._get_question_text(event_data)
-        question_text = question_text.replace("\n", " ")
+        question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
 
         saved_tags = event.get('context').get('asides', {}).get('tagging_aside', {}).get('saved_tags', {})
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\

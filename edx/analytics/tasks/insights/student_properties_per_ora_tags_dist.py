@@ -103,7 +103,7 @@ class StudentPropertiesPerOraTagsPerCourse(
 
         if prompts_list:
             question_text = u". ".join(prompts_list)
-        question_text = question_text.replace("\n", " ")
+        question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
 
         parts = event.get('event', {}).get('parts', [])
         for part in parts:
