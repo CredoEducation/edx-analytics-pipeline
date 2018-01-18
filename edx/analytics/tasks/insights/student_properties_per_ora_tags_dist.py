@@ -247,7 +247,7 @@ class StudentPropertiesAndOraTagsRecord(Record):
     question_text = StringField(length=21844, nullable=True, description='Question Text')
     name_hash = StringField(length=255, nullable=True, description='Name Hash')
     assessment_type = StringField(length=255, nullable=False, description='Assessment type')
-    properties_data = StringField(length=21844, nullable=True, description='Properties data in JSON format')
+    properties_data = StringField(length=43688, nullable=True, description='Properties data in JSON format')
     tag_name = StringField(length=255, nullable=True, description='Tag key')
     tag_value = StringField(length=255, nullable=True, description='Tag value')
     possible_points = IntegerField(nullable=False, description='Possible points')

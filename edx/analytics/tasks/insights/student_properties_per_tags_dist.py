@@ -341,7 +341,7 @@ class StudentPropertiesAndTagsRecord(Record):
     display_name = StringField(length=2048, nullable=True, description='Problem Display Name')
     question_text = StringField(length=21844, nullable=True, description='Question Text')
     name_hash = StringField(length=255, nullable=True, description='Name Hash')
-    properties_data = StringField(length=21844, nullable=True, description='Properties data in JSON format')
+    properties_data = StringField(length=43688, nullable=True, description='Properties data in JSON format')
     tag_name = StringField(length=255, nullable=True, description='Tag key')
     tag_value = StringField(length=255, nullable=True, description='Tag value')
     total_submissions = IntegerField(nullable=False, description='Number of total submissions')
