@@ -32,15 +32,18 @@ class StudentPropertiesPerOraTagsPerCourse(
 
     def _dist_earned_points_info(self, points):
         dist = defaultdict(int)
+        dist_by_user = defaultdict(list)
         result = []
         for p in points:
             dist[(p['points'], p['name'])] += 1
+            dist_by_user[(p['points'], p['name'])].append(p['user_id'])
         for r in dist:
             points, name = r
             result.append({
                 'points': points,
                 'name': name,
-                'count': dist[r]
+                'count': dist[r],
+                'users': dist_by_user[(points, name)]
             })
         return result
 
@@ -69,6 +72,10 @@ class StudentPropertiesPerOraTagsPerCourse(
 
         course_id = eventlog.get_course_id(event)
         if not course_id:
+            return
+
+        user_id = event.get('context').get('user_id', None)
+        if not user_id:
             return
 
         org_id = opaque_key_util.get_org_id_for_course(course_id)
@@ -112,9 +119,12 @@ class StudentPropertiesPerOraTagsPerCourse(
             part_points_scored = part.get('option', {})
             part_saved_tags = saved_tags.get(part_criterion_name, {})
 
-            yield (course_id, org_id, overload_items['course'], overload_items['term'], ora_id, assessment_type, part_criterion_name),\
-                  (timestamp, part_saved_tags, student_properties, part_points_possible, part_points_scored,
-                   question_text)
+            part_points_scored['user_id'] = int(user_id)
+
+            yield (course_id, org_id, overload_items['course'], overload_items['term'],
+                   ora_id, assessment_type, part_criterion_name),\
+                  (timestamp, part_saved_tags, student_properties,
+                   part_points_possible, part_points_scored, question_text)
 
     def reducer(self, key, values):
         course_id, org_id, course, run, ora_id, assessment_type, criterion_name = key
