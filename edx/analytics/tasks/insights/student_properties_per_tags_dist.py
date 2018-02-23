@@ -351,7 +351,7 @@ class StudentPropertiesAndTagsRecord(Record):
     run = StringField(length=255, nullable=False, description='Run')
     module_id = StringField(length=255, nullable=False, description='Problem id')
     display_name = StringField(length=2048, nullable=True, description='Problem Display Name')
-    question_text = StringField(length=21844, nullable=True, description='Question Text')
+    question_text = StringField(length=150000, nullable=True, description='Question Text')
     name_hash = StringField(length=255, nullable=True, description='Name Hash')
     properties_data = StringField(length=150000, nullable=True, description='Properties data in JSON format')
     tag_name = StringField(length=255, nullable=True, description='Tag key')
@@ -359,7 +359,7 @@ class StudentPropertiesAndTagsRecord(Record):
     total_submissions = IntegerField(nullable=False, description='Number of total submissions')
     correct_submissions = IntegerField(nullable=False, description='Number of correct submissions')
     correct_submissions_grades = FloatField(nullable=False, description='Number of correct submissions include partial correctness')
-    answers = StringField(length=21844, nullable=True, description='Distribution of answers')
+    answers = StringField(length=150000, nullable=True, description='Distribution of answers')
 
 
 @workflow_entry_point
