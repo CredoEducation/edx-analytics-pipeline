@@ -200,6 +200,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         props = []
         props_info = []
         props_json = None
+        all_users_data = {}
+        all_users_data_json = None
 
         # prepare base dicts for tags and properties
 
@@ -214,12 +216,22 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                     latest_question_text = question_text
                 latest_tags = saved_tags.copy() if saved_tags else None
 
+            if user_id not in all_users_data:
+                all_users_data[user_id] = {
+                    'correct': 0,
+                    'correct_grade': 0
+                }
+
             current_user_last_timestamp = user2last_timestamp.get(user_id, None)
             if current_user_last_timestamp is None or timestamp > current_user_last_timestamp:
                 user2last_timestamp[user_id] = timestamp
                 user2correct[user_id] = 1 if is_correct else 0
                 user2correct_grade[user_id] = grade
                 user2answers[user_id] = answers
+                all_users_data[user_id] = {
+                    'correct': 1 if is_correct else 0,
+                    'correct_grade': grade
+                }
 
             user2total[user_id] = 1
 
@@ -256,6 +268,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         if user2answers:
             all_answers = self._count_answer_values(user2answers)
             all_answers_json = json.dumps(all_answers)
+
+        if all_users_data:
+            all_users_data_json = json.dumps(all_users_data)
 
         # convert properties dict to the JSON format
 
@@ -321,7 +336,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             total_submissions=num_total,
             correct_submissions=num_correct,
             correct_submissions_grades=num_correct_grade,
-            answers=all_answers_json).to_string_tuple()
+            answers=all_answers_json,
+            users=all_users_data_json).to_string_tuple()
 
         if latest_tags:
             for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
@@ -341,7 +357,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         total_submissions=num_total,
                         correct_submissions=num_correct,
                         correct_submissions_grades=num_correct_grade,
-                        answers=all_answers_json).to_string_tuple()
+                        answers=all_answers_json,
+                        users=all_users_data_json).to_string_tuple()
 
 
 class StudentPropertiesAndTagsRecord(Record):
@@ -360,6 +377,7 @@ class StudentPropertiesAndTagsRecord(Record):
     correct_submissions = IntegerField(nullable=False, description='Number of correct submissions')
     correct_submissions_grades = FloatField(nullable=False, description='Number of correct submissions include partial correctness')
     answers = StringField(length=150000, nullable=True, description='Distribution of answers')
+    users = StringField(length=150000, nullable=True, description='Distribution of users')
 
 
 @workflow_entry_point
