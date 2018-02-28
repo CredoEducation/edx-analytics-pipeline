@@ -337,7 +337,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             correct_submissions=num_correct,
             correct_submissions_grades=num_correct_grade,
             answers=all_answers_json,
-            users=all_users_data_json).to_string_tuple()
+            users=None).to_string_tuple()
 
         if latest_tags:
             for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
@@ -358,7 +358,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         correct_submissions=num_correct,
                         correct_submissions_grades=num_correct_grade,
                         answers=all_answers_json,
-                        users=all_users_data_json).to_string_tuple()
+                        users=None).to_string_tuple()
 
 
 class StudentPropertiesAndTagsRecord(Record):
