@@ -217,10 +217,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 latest_tags = saved_tags.copy() if saved_tags else None
 
             if user_id not in all_users_data:
-                all_users_data[user_id] = {
-                    'correct': 0,
-                    'correct_grade': 0
-                }
+                all_users_data[user_id] = [0, 0]
 
             current_user_last_timestamp = user2last_timestamp.get(user_id, None)
             if current_user_last_timestamp is None or timestamp > current_user_last_timestamp:
@@ -228,10 +225,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 user2correct[user_id] = 1 if is_correct else 0
                 user2correct_grade[user_id] = grade
                 user2answers[user_id] = answers
-                all_users_data[user_id] = {
-                    'correct': 1 if is_correct else 0,
-                    'correct_grade': grade
-                }
+                all_users_data[user_id] = [1 if is_correct else 0, grade]
 
             user2total[user_id] = 1
 
@@ -337,7 +331,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             correct_submissions=num_correct,
             correct_submissions_grades=num_correct_grade,
             answers=all_answers_json,
-            users=None).to_string_tuple()
+            users=all_users_data_json).to_string_tuple()
 
         if latest_tags:
             for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
@@ -358,7 +352,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         correct_submissions=num_correct,
                         correct_submissions_grades=num_correct_grade,
                         answers=all_answers_json,
-                        users=None).to_string_tuple()
+                        users=all_users_data_json).to_string_tuple()
 
 
 class StudentPropertiesAndTagsRecord(Record):
