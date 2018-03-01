@@ -273,10 +273,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             for i, prop_dict in enumerate(props):
                 u_data = {}
                 for u_id, u_val in props_info[i]['num_correct'].iteritems():
-                    u_data[u_id] = {
-                        'correct': u_val,
-                        'correct_grade': props_info[i]['num_correct_grade'][u_id]
-                    }
+                    u_data[u_id] = [u_val, props_info[i]['num_correct_grade'][u_id]]
 
                 props_list_values.append({
                     'props': prop_dict,
