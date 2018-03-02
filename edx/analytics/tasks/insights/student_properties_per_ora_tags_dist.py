@@ -182,26 +182,29 @@ class StudentPropertiesPerOraTagsPerCourse(
                 })
             props_json = json.dumps(props_list_values)
 
-        # convert latest tags dict to extended dict. Example:
+        # convert latest tags dict to extended list. Example:
         # { 'lo': ['AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
         #          'Paul & Elder Critical Thinking Model - Concepts and Ideas'] }
         # =>
-        # { 'lo': ['AAC&U VALUE Rubric', 'AAC&U VALUE Rubric - Written Communication',
-        #          'AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
-        #          'Paul & Elder Critical Thinking Model'
-        #          'Paul & Elder Critical Thinking Model - Concepts and Ideas'] }
+        # ['AAC&U VALUE Rubric', 'AAC&U VALUE Rubric - Written Communication',
+        #  'AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
+        #  'Paul & Elder Critical Thinking Model'
+        #  'Paul & Elder Critical Thinking Model - Concepts and Ideas']
 
-        tags_extended_dict = {}
+        tags_extended_lst = []
+        tags_extended_lst_json = None
         if latest_tags:
             for tag_key, tag_val in latest_tags.iteritems():
                 tag_val_lst = [tag_val] if isinstance(tag_val, basestring) else tag_val
-                tags_extended_dict[tag_key] = []
                 for tag in tag_val_lst:
                     tag_split_lst = tag.split(' - ')
                     for idx, tag_part in enumerate(tag_split_lst):
                         tag_new_val = ' - '.join(tag_split_lst[0:idx + 1])
-                        if tag_new_val not in tags_extended_dict[tag_key]:
-                            tags_extended_dict[tag_key].append(tag_new_val)
+                        if tag_new_val not in tags_extended_lst:
+                            tags_extended_lst.append(tag_new_val)
+
+        if tags_extended_lst:
+            tags_extended_lst_json = json.dumps(tags_extended_lst)
 
         name_hash = hashlib.md5(criterion_name).hexdigest()
 
@@ -218,33 +221,11 @@ class StudentPropertiesPerOraTagsPerCourse(
             name_hash=name_hash,
             assessment_type=assessment_type,
             properties_data=props_json,
-            tag_name=None,
-            tag_value=None,
+            tags=tags_extended_lst_json,
             possible_points=latest_points_possible,
             total_earned_points=self._sum_earned_points(total_earned_points_info),
             total_earned_points_dist=json.dumps(self._dist_earned_points_info(total_earned_points_info)),
             submissions_count=num_submissions_count).to_string_tuple()
-
-        if latest_tags:
-            for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
-                for val in tags_extended_lst:
-                    yield StudentPropertiesAndOraTagsRecord(
-                        course_id=course_id,
-                        org_id=org_id,
-                        course=course,
-                        run=run,
-                        module_id=ora_id,
-                        criterion_name=criterion_name,
-                        question_text=latest_question_text,
-                        name_hash=name_hash,
-                        assessment_type=assessment_type,
-                        properties_data=props_json,
-                        tag_name=tag_key,
-                        tag_value=val,
-                        possible_points=latest_points_possible,
-                        total_earned_points=self._sum_earned_points(total_earned_points_info),
-                        total_earned_points_dist=json.dumps(self._dist_earned_points_info(total_earned_points_info)),
-                        submissions_count=num_submissions_count).to_string_tuple()
 
 
 class StudentPropertiesAndOraTagsRecord(Record):
@@ -258,8 +239,7 @@ class StudentPropertiesAndOraTagsRecord(Record):
     name_hash = StringField(length=255, nullable=True, description='Name Hash')
     assessment_type = StringField(length=255, nullable=False, description='Assessment type')
     properties_data = StringField(length=150000, nullable=True, description='Properties data in JSON format')
-    tag_name = StringField(length=255, nullable=True, description='Tag key')
-    tag_value = StringField(length=255, nullable=True, description='Tag value')
+    tags = StringField(length=150000, nullable=True, description='Tags')
     possible_points = IntegerField(nullable=False, description='Possible points')
     total_earned_points = IntegerField(nullable=False, description='Total earned points')
     submissions_count = IntegerField(nullable=False, description='Submissions count')

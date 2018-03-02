@@ -286,26 +286,29 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 })
             props_json = json.dumps(props_list_values)
 
-        # convert latest tags dict to extended dict. Example:
+        # convert latest tags dict to extended list. Example:
         # { 'lo': ['AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
         #          'Paul & Elder Critical Thinking Model - Concepts and Ideas'] }
         # =>
-        # { 'lo': ['AAC&U VALUE Rubric', 'AAC&U VALUE Rubric - Written Communication',
-        #          'AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
-        #          'Paul & Elder Critical Thinking Model'
-        #          'Paul & Elder Critical Thinking Model - Concepts and Ideas'] }
+        # ['AAC&U VALUE Rubric', 'AAC&U VALUE Rubric - Written Communication',
+        #  'AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
+        #  'Paul & Elder Critical Thinking Model'
+        #  'Paul & Elder Critical Thinking Model - Concepts and Ideas']
 
-        tags_extended_dict = {}
+        tags_extended_lst = []
+        tags_extended_lst_json = None
         if latest_tags:
             for tag_key, tag_val in latest_tags.iteritems():
                 tag_val_lst = [tag_val] if isinstance(tag_val, basestring) else tag_val
-                tags_extended_dict[tag_key] = []
                 for tag in tag_val_lst:
                     tag_split_lst = tag.split(' - ')
                     for idx, tag_part in enumerate(tag_split_lst):
                         tag_new_val = ' - '.join(tag_split_lst[0:idx + 1])
-                        if tag_new_val not in tags_extended_dict[tag_key]:
-                            tags_extended_dict[tag_key].append(tag_new_val)
+                        if tag_new_val not in tags_extended_lst:
+                            tags_extended_lst.append(tag_new_val)
+
+        if tags_extended_lst:
+            tags_extended_lst_json = json.dumps(tags_extended_lst)
 
         common_name = u''.join([latest_display_name, latest_question_text])
         name_hash = hashlib.md5(common_name.encode('utf-8')).hexdigest()
@@ -322,34 +325,12 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             question_text=latest_question_text,
             name_hash=name_hash,
             properties_data=props_json,
-            tag_name=None,
-            tag_value=None,
+            tags=tags_extended_lst_json,
             total_submissions=num_total,
             correct_submissions=num_correct,
             correct_submissions_grades=num_correct_grade,
             answers=all_answers_json,
             users=all_users_data_json).to_string_tuple()
-
-        if latest_tags:
-            for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
-                for val in tags_extended_lst:
-                    yield StudentPropertiesAndTagsRecord(
-                        course_id=course_id,
-                        org_id=org_id,
-                        course=course,
-                        run=run,
-                        module_id=problem_id,
-                        display_name=latest_display_name,
-                        question_text=latest_question_text,
-                        name_hash=name_hash,
-                        properties_data=props_json,
-                        tag_name=tag_key,
-                        tag_value=val,
-                        total_submissions=num_total,
-                        correct_submissions=num_correct,
-                        correct_submissions_grades=num_correct_grade,
-                        answers=all_answers_json,
-                        users=all_users_data_json).to_string_tuple()
 
 
 class StudentPropertiesAndTagsRecord(Record):
@@ -362,8 +343,7 @@ class StudentPropertiesAndTagsRecord(Record):
     question_text = StringField(length=150000, nullable=True, description='Question Text')
     name_hash = StringField(length=255, nullable=True, description='Name Hash')
     properties_data = StringField(length=150000, nullable=True, description='Properties data in JSON format')
-    tag_name = StringField(length=255, nullable=True, description='Tag key')
-    tag_value = StringField(length=255, nullable=True, description='Tag value')
+    tags = StringField(length=150000, nullable=True, description='Tags')
     total_submissions = IntegerField(nullable=False, description='Number of total submissions')
     correct_submissions = IntegerField(nullable=False, description='Number of correct submissions')
     correct_submissions_grades = FloatField(nullable=False, description='Number of correct submissions include partial correctness')
