@@ -88,15 +88,14 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
     def _count_answer_values(self, user_answers):
         result = {}
-        for user_answers in user_answers.values():
-#        for user_id, user_answers in user_answers.iteritems():
+        for user_id, user_answers in user_answers.iteritems():
             for item in user_answers:
                 answer_value = item['answer_value']
                 result.setdefault(answer_value, item)
                 result[answer_value]['count'] = result[answer_value].get('count', 0) + 1
-#                if 'users' not in result[answer_value]:
-#                    result[answer_value]['users'] = []
-#                result[answer_value]['users'].append(user_id)
+                if 'users' not in result[answer_value]:
+                    result[answer_value]['users'] = []
+                result[answer_value]['users'].append(user_id)
 
         return result
 
@@ -263,12 +262,12 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         props_list_values = []
         if len(props) > 0:
             for i, prop_dict in enumerate(props):
-#                u_data = {}
-#                for u_id, u_val in props_info[i]['num_correct'].iteritems():
-#                    u_data[u_id] = {
-#                        'correct': u_val,
-#                        'correct_grade': props_info[i]['num_correct_grade'][u_id]
-#                    }
+                u_data = {}
+                for u_id, u_val in props_info[i]['num_correct'].iteritems():
+                    u_data[u_id] = {
+                        'correct': u_val,
+                        'correct_grade': props_info[i]['num_correct_grade'][u_id]
+                    }
 
                 props_list_values.append({
                     'props': prop_dict,
@@ -277,7 +276,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                     'correct': sum(props_info[i]['num_correct'].values()),
                     'correct_grade': sum(props_info[i]['num_correct_grade'].values()),
                     'answers': self._count_answer_values(props_info[i]['answers']),
-#                    'users': u_data
+                    'users': u_data
                 })
             props_json = json.dumps(props_list_values)
 
