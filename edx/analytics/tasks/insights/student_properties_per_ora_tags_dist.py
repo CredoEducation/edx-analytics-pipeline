@@ -36,7 +36,8 @@ class StudentPropertiesPerOraTagsPerCourse(
         result = []
         for p in points:
             dist[(p['points'], p['name'])] += 1
-            dist_by_user[(p['points'], p['name'])].append(p['user_id'])
+            if p['student_id']:
+                dist_by_user[(p['points'], p['name'])].append(p['student_id'])
         for r in dist:
             points, name = r
             result.append({
@@ -93,6 +94,8 @@ class StudentPropertiesPerOraTagsPerCourse(
         saved_tags = event.get('context').get('asides', {}).get('tagging_ora_aside', {}).get('saved_tags', {})
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
+        student_id = event.get('context').get('asides', {}).get('student_properties_aside', {}) \
+            .get('student_id', None)
 
         overload_items = {'course': course, 'term': run}
         for k in overload_items:
@@ -116,10 +119,9 @@ class StudentPropertiesPerOraTagsPerCourse(
         for part in parts:
             part_criterion_name = part.get('criterion', {}).get('name', None)
             part_points_possible = int(part.get('criterion', {}).get('points_possible', 0))
-            part_points_scored = part.get('option', {})
             part_saved_tags = saved_tags.get(part_criterion_name, {})
-
-            part_points_scored['user_id'] = int(user_id)
+            part_points_scored = part.get('option', {})
+            part_points_scored['student_id'] = int(student_id) if student_id else None
 
             yield (course_id, org_id, overload_items['course'], overload_items['term'],
                    ora_id, assessment_type, part_criterion_name),\
@@ -141,6 +143,9 @@ class StudentPropertiesPerOraTagsPerCourse(
         props_info = []
         props_json = None
 
+        all_users_data = {}
+        all_users_data_json = None
+
         # prepare base dicts for tags and properties
 
         for timestamp, saved_tags, student_properties, points_possible, points_scored, question_text in values:
@@ -150,6 +155,12 @@ class StudentPropertiesPerOraTagsPerCourse(
                     latest_question_text = question_text
                 latest_tags = saved_tags.copy() if saved_tags else None
                 latest_points_possible = points_possible
+
+            student_id = points_scored['student_id']
+            student_points = points_scored['points']
+
+            if student_id:
+                all_users_data[student_id] = student_points
 
             total_earned_points_info.append(points_scored)
             num_submissions_count += 1
@@ -167,6 +178,11 @@ class StudentPropertiesPerOraTagsPerCourse(
                     props_info[prop_idx]['total_earned_points_info'].append(points_scored)
                     props_info[prop_idx]['num_submissions_count'] += 1
 
+        if all_users_data:
+            for student_id, student_points in all_users_data.iteritems():
+                all_users_data[student_id] = [round((student_points * 1.0) / latest_points_possible, 2)]
+            all_users_data_json = json.dumps(all_users_data)
+
         # convert properties dict to the JSON format
 
         props_list_values = []
@@ -182,26 +198,29 @@ class StudentPropertiesPerOraTagsPerCourse(
                 })
             props_json = json.dumps(props_list_values)
 
-        # convert latest tags dict to extended dict. Example:
+        # convert latest tags dict to extended list. Example:
         # { 'lo': ['AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
         #          'Paul & Elder Critical Thinking Model - Concepts and Ideas'] }
         # =>
-        # { 'lo': ['AAC&U VALUE Rubric', 'AAC&U VALUE Rubric - Written Communication',
-        #          'AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
-        #          'Paul & Elder Critical Thinking Model'
-        #          'Paul & Elder Critical Thinking Model - Concepts and Ideas'] }
+        # ['AAC&U VALUE Rubric', 'AAC&U VALUE Rubric - Written Communication',
+        #  'AAC&U VALUE Rubric - Written Communication - Genre and Disciplinary Conventions',
+        #  'Paul & Elder Critical Thinking Model'
+        #  'Paul & Elder Critical Thinking Model - Concepts and Ideas']
 
-        tags_extended_dict = {}
+        tags_extended_lst = []
+        tags_extended_lst_json = None
         if latest_tags:
             for tag_key, tag_val in latest_tags.iteritems():
                 tag_val_lst = [tag_val] if isinstance(tag_val, basestring) else tag_val
-                tags_extended_dict[tag_key] = []
                 for tag in tag_val_lst:
                     tag_split_lst = tag.split(' - ')
                     for idx, tag_part in enumerate(tag_split_lst):
                         tag_new_val = ' - '.join(tag_split_lst[0:idx + 1])
-                        if tag_new_val not in tags_extended_dict[tag_key]:
-                            tags_extended_dict[tag_key].append(tag_new_val)
+                        if tag_new_val not in tags_extended_lst:
+                            tags_extended_lst.append(tag_new_val)
+
+        if tags_extended_lst:
+            tags_extended_lst_json = json.dumps(tags_extended_lst)
 
         name_hash = hashlib.md5(criterion_name).hexdigest()
 
@@ -218,33 +237,12 @@ class StudentPropertiesPerOraTagsPerCourse(
             name_hash=name_hash,
             assessment_type=assessment_type,
             properties_data=props_json,
-            tag_name=None,
-            tag_value=None,
+            tags=tags_extended_lst_json,
             possible_points=latest_points_possible,
             total_earned_points=self._sum_earned_points(total_earned_points_info),
             total_earned_points_dist=json.dumps(self._dist_earned_points_info(total_earned_points_info)),
-            submissions_count=num_submissions_count).to_string_tuple()
-
-        if latest_tags:
-            for tag_key, tags_extended_lst in tags_extended_dict.iteritems():
-                for val in tags_extended_lst:
-                    yield StudentPropertiesAndOraTagsRecord(
-                        course_id=course_id,
-                        org_id=org_id,
-                        course=course,
-                        run=run,
-                        module_id=ora_id,
-                        criterion_name=criterion_name,
-                        question_text=latest_question_text,
-                        name_hash=name_hash,
-                        assessment_type=assessment_type,
-                        properties_data=props_json,
-                        tag_name=tag_key,
-                        tag_value=val,
-                        possible_points=latest_points_possible,
-                        total_earned_points=self._sum_earned_points(total_earned_points_info),
-                        total_earned_points_dist=json.dumps(self._dist_earned_points_info(total_earned_points_info)),
-                        submissions_count=num_submissions_count).to_string_tuple()
+            submissions_count=num_submissions_count,
+            users=all_users_data_json).to_string_tuple()
 
 
 class StudentPropertiesAndOraTagsRecord(Record):
@@ -258,12 +256,12 @@ class StudentPropertiesAndOraTagsRecord(Record):
     name_hash = StringField(length=255, nullable=True, description='Name Hash')
     assessment_type = StringField(length=255, nullable=False, description='Assessment type')
     properties_data = StringField(length=150000, nullable=True, description='Properties data in JSON format')
-    tag_name = StringField(length=255, nullable=True, description='Tag key')
-    tag_value = StringField(length=255, nullable=True, description='Tag value')
+    tags = StringField(length=150000, nullable=True, description='Tags')
     possible_points = IntegerField(nullable=False, description='Possible points')
     total_earned_points = IntegerField(nullable=False, description='Total earned points')
     submissions_count = IntegerField(nullable=False, description='Submissions count')
     total_earned_points_dist = StringField(length=150000, nullable=True, description='Distribution of earned points')
+    users = StringField(length=150000, nullable=True, description='Distribution of users')
 
 
 @workflow_entry_point
