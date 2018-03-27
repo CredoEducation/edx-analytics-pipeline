@@ -83,7 +83,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                     processed_answers.append(re.sub('<choicehint\s*(selected=\"true\")*>.*?</choicehint>', '',
                                                     item.replace("\n", "").replace("\t", "").replace("\r", "")))
                 answer_data['answer_display'] = '|'.join(processed_answers)
-                answer_data['correct'] = submission.get('correct')
+                answer_data['correct'] = int(submission.get('correct', -1))
 
                 result_answers.append(answer_data)
         return result_answers
