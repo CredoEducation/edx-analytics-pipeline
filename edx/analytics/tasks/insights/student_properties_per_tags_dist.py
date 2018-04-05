@@ -70,6 +70,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
     def _get_answer_values(self, event_data):
         answers = event_data['answers']
         submissions = event_data.get('submission', {})
+        correct_maps = event_data.get('correct_map', {})
         result_answers = []
         for answer_id, submission in submissions.items():
             if submission['input_type'] and submission['input_type'] in ['choicegroup', 'checkboxgroup']:
@@ -83,6 +84,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                     processed_answers.append(re.sub('<choicehint\s*(selected=\"true\")*>.*?</choicehint>', '',
                                                     item.replace("\n", "").replace("\t", "").replace("\r", "")))
                 answer_data['answer_display'] = '|'.join(processed_answers)
+                answer_data['correct'] = int(submission.get('correct', -1))
+                answer_data['correctness'] = correct_maps[answer_id].get('correctness', '')
 
                 result_answers.append(answer_data)
         return result_answers
