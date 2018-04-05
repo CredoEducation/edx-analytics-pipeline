@@ -100,7 +100,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 if 'users' not in result[answer_value]:
                     result[answer_value]['users'] = []
                 result[answer_value]['users'].append(user_id)
-
+                result[answer_value]['correct'] = item['correct']
+                result[answer_value]['correctness'] = item['correctness']
         return result
 
     def mapper(self, line):
