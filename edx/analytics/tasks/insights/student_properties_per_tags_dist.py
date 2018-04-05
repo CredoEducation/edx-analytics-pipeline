@@ -87,7 +87,6 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 answer_data['correct'] = int(submission.get('correct', -1))
                 answer_data['correctness'] = correct_maps[answer_id].get('correctness', '')
 
-
                 result_answers.append(answer_data)
         return result_answers
 
@@ -102,6 +101,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                     result[answer_value]['users'] = []
                 result[answer_value]['users'].append(user_id)
                 result[answer_value]['correct'] = item['correct']
+                result[answer_value]['correctness'] = item['correctness']
 
         return result
 
