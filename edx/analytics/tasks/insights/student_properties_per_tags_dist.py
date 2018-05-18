@@ -162,15 +162,19 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
 
-        overload_items = {'course': course, 'course_title': course, 'courses': course, 'term': run}
+        overload_items = {
+            'course': {'value': course, 'props': ['course', 'courses', 'course_title']},
+            'term': {'value': run, 'props': ['term', 'terms', 'run', 'runs']}
+        }
         for k in overload_items:
-            new_value, new_properties = get_value_from_student_properties(k, student_properties)
-            if new_value:
-                overload_items[k], student_properties = new_value, new_properties
+            for prop in overload_items[k]['props']:
+                new_value, new_properties = get_value_from_student_properties(prop, student_properties)
+                if new_value:
+                    overload_items[k]['value'], student_properties = new_value, new_properties
 
         answers = self._get_answer_values(event_data)
 
-        yield (course_id, org_id, overload_items['course'], overload_items['term'], problem_id),\
+        yield (course_id, org_id, overload_items['course']['value'], overload_items['term']['value'], problem_id),\
               (timestamp, saved_tags, student_properties, is_correct, grade, int(user_id), display_name, question_text,
                answers)
 
