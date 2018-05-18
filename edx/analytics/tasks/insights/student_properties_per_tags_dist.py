@@ -162,7 +162,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
 
-        overload_items = {'course': course, 'term': run}
+        overload_items = {'course': course, 'course_title': course, 'courses': course, 'term': run}
         for k in overload_items:
             new_value, new_properties = get_value_from_student_properties(k, student_properties)
             if new_value:
