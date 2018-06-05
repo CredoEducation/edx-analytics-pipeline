@@ -98,7 +98,7 @@ class StudentPropertiesPerOraTagsPerCourse(
             .get('student_id', None)
 
         overload_items = {
-            'course': {'value': course, 'props': ['course', 'courses', 'course_title']},
+            'course': {'value': course, 'props': ['course', 'courses', 'course_title', 'course title', 'othercourse']},
             'term': {'value': run, 'props': ['term', 'terms', 'run', 'runs']}
         }
         for k in overload_items:
