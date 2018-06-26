@@ -126,11 +126,12 @@ class StudentPropertiesPerOraTagsPerCourse(
             part_saved_tags = saved_tags.get(part_criterion_name, {})
             part_points_scored = part.get('option', {})
             part_points_scored['student_id'] = int(student_id) if student_id else None
-
-            yield (course_id, org_id, overload_items['course']['value'], overload_items['term']['value'],
-                   ora_id, assessment_type, part_criterion_name),\
-                  (timestamp, part_saved_tags, student_properties,
-                   part_points_possible, part_points_scored, question_text)
+            
+            if part_points_possible > 0:
+                yield (course_id, org_id, overload_items['course']['value'], overload_items['term']['value'],
+                       ora_id, assessment_type, part_criterion_name),\
+                      (timestamp, part_saved_tags, student_properties,
+                       part_points_possible, part_points_scored, question_text)
 
     def reducer(self, key, values):
         course_id, org_id, course, run, ora_id, assessment_type, criterion_name = key
