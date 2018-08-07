@@ -221,6 +221,7 @@ class PathSelectionByDateIntervalTask(EventLogSelectionDownstreamMixin, luigi.Wr
         Presently filters first on pattern match and then on the datestamp extracted from the file name.
         """
         # Find the first pattern (if any) that matches the URL.
+        return True
         match = None
         for pattern in self.pattern:
             match = re.match(pattern, url)
