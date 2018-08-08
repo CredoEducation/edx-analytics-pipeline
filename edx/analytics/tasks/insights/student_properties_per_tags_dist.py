@@ -131,8 +131,6 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             return
 
         user_id = event.get('context').get('user_id', None)
-        if user_id in [1108290, 1104604]:
-            log.info(line)
 
         if not user_id:
             return
