@@ -104,3 +104,19 @@ def get_course_key_from_url(url):
             pass
 
     return course_key
+
+
+def get_course_for_course(course_id):
+    try:
+        course_key = CourseKey.from_string(course_id)
+        return course_key.course
+    except InvalidKeyError:
+        return None
+
+
+def get_run_for_course(course_id):
+    try:
+        course_key = CourseKey.from_string(course_id)
+        return course_key.run
+    except InvalidKeyError:
+        return None
