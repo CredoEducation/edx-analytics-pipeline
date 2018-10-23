@@ -121,7 +121,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         answer_value_list = []
         zones = [z['title'] for z in event_data.get('zones', []) if 'title' in z]
         for zone_title in zones:
-            item_state = zones.get(zone_title)
+            item_state = items_state.get(zone_title)
             answer_display_list.append(item_state['display_name'] if item_state else '-Empty-')
             answer_value_list.append(item_state['id'] if item_state else '0')
 
