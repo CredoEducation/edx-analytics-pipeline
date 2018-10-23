@@ -88,6 +88,53 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 result_answers.append(answer_data)
         return result_answers
 
+    def _get_dnd_correctness(self, event_data):
+        correct = 0
+        correctness = 'incorrect'
+        earned_grade = float(event_data.get('earned_score', 0))
+        max_grade = float(event_data.get('max_score', 0))
+
+        if 0 < earned_grade < max_grade:
+            correct = 1
+            correctness = 'partially-correct'
+        elif earned_grade == max_grade:
+            correct = 1
+            correctness = 'correct'
+        return {
+            'correct': correct,
+            'correctness': correctness,
+            'earned_grade': earned_grade,
+            'max_grade': max_grade
+        }
+
+    def _get_dnd_answer_values(self, event_data):
+        items_state = {}
+        for st in event_data.get('item_state'):
+            zone_title = st.get('zone', {}).get('title', '')
+            if zone_title:
+                items_state[zone_title] = {
+                    'display_name': st.get('display_name', ''),
+                    'id': st.get('id', '0')
+                }
+
+        answer_display_list = []
+        answer_value_list = []
+        zones = [z['title'] for z in event_data.get('zones', []) if 'title' in z]
+        for zone_title in zones:
+            item_state = zones.get(zone_title)
+            answer_display_list.append(item_state['display_name'] if item_state else '-Empty-')
+            answer_value_list.append(item_state['id'] if item_state else '0')
+
+        dnd_correctness = self._get_dnd_correctness(event_data)
+
+        answer_data = {
+            'answer_value': '|'.join(answer_value_list),
+            'answer_display': '|'.join(answer_display_list),
+            'correct': dnd_correctness['correct'],
+            'correctness': dnd_correctness['correctness']
+        }
+        return [answer_data]
+
     def _count_answer_values(self, user_answers):
         result = {}
         for user_id, user_answers in user_answers.iteritems():
@@ -117,7 +164,12 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             return
         event, _ = value
 
-        if event.get('event_type') != 'problem_check' or event.get('event_source') != 'server':
+        event_type = event.get('event_type')
+
+        is_dnd_problem = event_type == 'edx.drag_and_drop_v2.item.dropped'
+
+        if event_type not in ('problem_check', 'edx.drag_and_drop_v2.item.dropped')\
+                or event.get('event_source') != 'server':
             return
 
         timestamp = eventlog.get_event_time_string(event)
@@ -140,14 +192,27 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         event_data = eventlog.get_event_data(event)
         if event_data is None:
             return
+        if is_dnd_problem and 'zones' not in event_data:
+            return
 
-        problem_id = event_data.get('problem_id')
+        if is_dnd_problem:
+            problem_id = event.get('context').get('module', {}).get('usage_key')
+        else:
+            problem_id = event_data.get('problem_id')
+
         if not problem_id:
             return
 
-        is_correct = event_data.get('success') == 'correct'
-        earned_grade = float(event_data.get('grade', 0))
-        max_grade = float(event_data.get('max_grade', 0))
+        if is_dnd_problem:
+            dnd_correctness = self._get_dnd_correctness(event_data)
+            is_correct = dnd_correctness['correct'] == 1
+            earned_grade = dnd_correctness['earned_grade']
+            max_grade = dnd_correctness['max_grade']
+        else:
+            is_correct = event_data.get('success') == 'correct'
+            earned_grade = float(event_data.get('grade', 0))
+            max_grade = float(event_data.get('max_grade', 0))
+
         if max_grade != 0:
             grade = earned_grade / max_grade
         else:
@@ -171,7 +236,10 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 if new_value:
                     overload_items[k]['value'], student_properties = new_value, new_properties
 
-        answers = self._get_answer_values(event_data)
+        if is_dnd_problem:
+            answers = self._get_dnd_answer_values(event_data)
+        else:
+            answers = self._get_answer_values(event_data)
 
         yield (course_id, org_id, overload_items['course']['value'], overload_items['term']['value'], problem_id),\
               (timestamp, saved_tags, student_properties, is_correct, grade, int(user_id), display_name, question_text,
@@ -184,7 +252,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         Args:
             key:  (course_id, org_id, course, run, problem_id)
-            values:  iterator of (timestamp, saved_tags, student_properties, is_correct, 
+            values:  iterator of (timestamp, saved_tags, student_properties, is_correct,
                                   grade, user_id, display_name, question_text)
 
         """
