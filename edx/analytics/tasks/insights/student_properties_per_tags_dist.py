@@ -114,7 +114,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             if zone_title:
                 items_state[zone_title] = {
                     'display_name': st.get('display_name', ''),
-                    'id': st.get('id', '0')
+                    'id': str(st.get('id', '0'))
                 }
 
         answer_display_list = []
@@ -123,7 +123,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         for zone_title in zones:
             item_state = items_state.get(zone_title)
             answer_display_list.append(item_state['display_name'] if item_state else '-Empty-')
-            answer_value_list.append(item_state['id'] if item_state else '0')
+            answer_value_list.append(item_state['id'] if item_state else '-1')
 
         dnd_correctness = self._get_dnd_correctness(event_data)
 
