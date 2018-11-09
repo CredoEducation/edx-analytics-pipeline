@@ -228,7 +228,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         overload_items = {
             'course': {'value': course, 'props': ['course', 'courses', 'course_title', 'course title', 'othercourse']},
-            'term': {'value': run, 'props': ['term', 'terms', 'run', 'runs']}
+            'term': {'value': None, 'props': ['term', 'terms', 'run', 'runs']}
         }
         for k in overload_items:
             for prop in overload_items[k]['props']:
@@ -236,12 +236,15 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 if new_value:
                     overload_items[k]['value'], student_properties = new_value, new_properties
 
+        if overload_items['term']['value']:
+            student_properties['enrollment']['term'] = overload_items['term']['value']
+
         if is_dnd_problem:
             answers = self._get_dnd_answer_values(event_data)
         else:
             answers = self._get_answer_values(event_data)
 
-        yield (course_id, org_id, overload_items['course']['value'], overload_items['term']['value'], problem_id),\
+        yield (course_id, org_id, overload_items['course']['value'], run, problem_id),\
               (timestamp, saved_tags, student_properties, is_correct, grade, int(user_id), display_name, question_text,
                answers)
 

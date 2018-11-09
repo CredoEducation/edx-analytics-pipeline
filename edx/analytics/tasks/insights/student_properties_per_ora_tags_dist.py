@@ -97,13 +97,16 @@ class StudentPropertiesPerOraTagsPerCourse(
 
         overload_items = {
             'course': {'value': course, 'props': ['course', 'courses', 'course_title', 'course title', 'othercourse']},
-            'term': {'value': run, 'props': ['term', 'terms', 'run', 'runs']}
+            'term': {'value': None, 'props': ['term', 'terms', 'run', 'runs']}
         }
         for k in overload_items:
             for prop in overload_items[k]['props']:
                 new_value, new_properties = get_value_from_student_properties(prop, student_properties)
                 if new_value:
                     overload_items[k]['value'], student_properties = new_value, new_properties
+
+        if overload_items['term']['value']:
+            student_properties['enrollment']['term'] = overload_items['term']['value']
 
         question_text = u''
         prompts_list = []
@@ -124,9 +127,9 @@ class StudentPropertiesPerOraTagsPerCourse(
             part_saved_tags = saved_tags.get(part_criterion_name, {})
             part_points_scored = part.get('option', {})
             part_points_scored['student_id'] = int(student_id) if student_id else None
-            
+
             if part_points_possible > 0:
-                yield (course_id, org_id, overload_items['course']['value'], overload_items['term']['value'],
+                yield (course_id, org_id, overload_items['course']['value'], run,
                        ora_id, assessment_type, part_criterion_name),\
                       (timestamp, part_saved_tags, student_properties,
                        part_points_possible, part_points_scored, question_text)
