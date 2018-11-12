@@ -40,7 +40,7 @@ class ModuleEngagementRecord(Record):
     """Represents a count of interactions performed by a user on a particular entity (usually a module in a course)."""
 
     course_id = StringField(length=255, nullable=False, description='Course the learner interacted with.')
-    username = StringField(length=30, nullable=False, description='Learner\'s username.')
+    username = StringField(length=255, nullable=False, description='Learner\'s username.')
     date = DateField(nullable=False, description='The learner interacted with the entity on this date.')
     entity_type = StringField(length=10, nullable=False, description='Category of entity that the learner interacted'
                                                                      ' with. Example: "video".')
