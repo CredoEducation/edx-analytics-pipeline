@@ -237,7 +237,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                     overload_items[k]['value'], student_properties = new_value, new_properties
 
         if overload_items['term']['value']:
-            student_properties['enrollment']['term'] = overload_items['term']['value']
+            student_properties['enrollment']['terms'] = overload_items['term']['value']
 
         if is_dnd_problem:
             answers = self._get_dnd_answer_values(event_data)
