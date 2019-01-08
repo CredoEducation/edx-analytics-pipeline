@@ -159,12 +159,6 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         return result
 
-    def check_is_ora_empty_rubrics(self, event_type, event_data):
-        if event_type == 'openassessmentblock.create_submission':
-            if event_data.get('rubric_count') == 0:
-                return True
-        return False
-
     def mapper(self, line):
         """
         Args:
@@ -192,7 +186,13 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         is_dnd_problem = event_type == 'edx.drag_and_drop_v2.item.dropped'
 
-        is_ora_empty_rubrics = self.check_is_ora_empty_rubrics(event_type, event_data)
+        is_ora_empty_rubrics = False
+        if event_type == 'openassessmentblock.create_submission':
+            rubric_count = event_data.get('rubric_count')
+            if rubric_count == 0:
+                is_ora_empty_rubrics = True
+            else:
+                return
 
         timestamp = eventlog.get_event_time_string(event)
         if timestamp is None:
