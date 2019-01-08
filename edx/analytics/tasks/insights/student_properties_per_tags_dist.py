@@ -192,7 +192,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         is_dnd_problem = event_type == 'edx.drag_and_drop_v2.item.dropped'
 
-        is_ora_empty_rubrics = self.heck_is_ora_empty_rubrics(event_type, event_data)
+        is_ora_empty_rubrics = self.check_is_ora_empty_rubrics(event_type, event_data)
 
         timestamp = eventlog.get_event_time_string(event)
         if timestamp is None:
