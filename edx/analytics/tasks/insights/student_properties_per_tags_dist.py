@@ -3,6 +3,7 @@ import luigi
 import hashlib
 import json
 import re
+import copy
 
 import edx.analytics.tasks.util.eventlog as eventlog
 import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
@@ -88,6 +89,14 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 result_answers.append(answer_data)
         return result_answers
 
+    def _get_empty_rubric_answers(self, event_data):
+        answers_parts = event_data.get('answer', {}).get('parts')
+        if answers_parts is None:
+            return ''
+
+        answer = ' '.join([i.get('text', '') for i in answers_parts])
+        return [{'answer_value': answer, 'correct': 1, 'correctness': 'correct'}]
+
     def _get_dnd_correctness(self, event_data):
         correct = 0
         correctness = 'incorrect'
@@ -140,7 +149,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         for user_id, user_answers in user_answers.iteritems():
             for item in user_answers:
                 answer_value = item['answer_value']
-                result.setdefault(answer_value, item)
+                result.setdefault(answer_value, copy.copy(item))
                 result[answer_value]['count'] = result[answer_value].get('count', 0) + 1
                 if 'users' not in result[answer_value]:
                     result[answer_value]['users'] = []
@@ -166,11 +175,24 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         event_type = event.get('event_type')
 
-        is_dnd_problem = event_type == 'edx.drag_and_drop_v2.item.dropped'
-
-        if event_type not in ('problem_check', 'edx.drag_and_drop_v2.item.dropped')\
+        if event_type not in ('problem_check', 'edx.drag_and_drop_v2.item.dropped',
+                              'openassessmentblock.create_submission')\
                 or event.get('event_source') != 'server':
             return
+
+        event_data = eventlog.get_event_data(event)
+        if event_data is None:
+            return
+
+        is_dnd_problem = event_type == 'edx.drag_and_drop_v2.item.dropped'
+
+        is_ora_empty_rubrics = False
+        if event_type == 'openassessmentblock.create_submission':
+            rubric_count = event_data.get('rubric_count')
+            if rubric_count == 0:
+                is_ora_empty_rubrics = True
+            else:
+                return
 
         timestamp = eventlog.get_event_time_string(event)
         if timestamp is None:
@@ -189,14 +211,13 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         course = opaque_key_util.get_course_for_course(course_id)
         run = opaque_key_util.get_run_for_course(course_id)
 
-        event_data = eventlog.get_event_data(event)
-        if event_data is None:
-            return
         if is_dnd_problem and 'zones' not in event_data:
             return
 
         if is_dnd_problem:
             problem_id = event.get('context').get('module', {}).get('usage_key')
+        elif is_ora_empty_rubrics:
+            problem_id = event.get('context', {}).get('module', {}).get('usage_key')
         else:
             problem_id = event_data.get('problem_id')
 
@@ -208,6 +229,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             is_correct = dnd_correctness['correct'] == 1
             earned_grade = dnd_correctness['earned_grade']
             max_grade = dnd_correctness['max_grade']
+        elif is_ora_empty_rubrics:
+            is_correct = True
+            max_grade = 0
         else:
             is_correct = event_data.get('success') == 'correct'
             earned_grade = float(event_data.get('grade', 0))
@@ -241,6 +265,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         if is_dnd_problem:
             answers = self._get_dnd_answer_values(event_data)
+        elif is_ora_empty_rubrics:
+            answers = self._get_empty_rubric_answers(event_data)
         else:
             answers = self._get_answer_values(event_data)
 
