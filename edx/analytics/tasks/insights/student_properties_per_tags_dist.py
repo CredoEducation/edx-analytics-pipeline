@@ -198,6 +198,10 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         if timestamp is None:
             return
 
+        dtime = eventlog.get_event_time(event)
+        if dtime is None:
+            return
+
         course_id = eventlog.get_course_id(event)
         if not course_id:
             return
@@ -260,8 +264,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 if new_value:
                     overload_items[k]['value'], student_properties = new_value, new_properties
 
-        if overload_items['term']['value']:
-            student_properties['enrollment']['terms'] = overload_items['term']['value']
+        #if overload_items['term']['value']:
+        #    student_properties['enrollment']['terms'] = overload_items['term']['value']
+        student_properties['enrollment']['terms'] = dtime.strftime("%B %Y")
 
         if is_dnd_problem:
             answers = self._get_dnd_answer_values(event_data)
