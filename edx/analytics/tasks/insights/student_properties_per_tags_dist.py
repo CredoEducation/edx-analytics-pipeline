@@ -253,6 +253,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         saved_tags = event.get('context').get('asides', {}).get('tagging_aside', {}).get('saved_tags', {})
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
+        month_terms_format = event.get('context').get('asides', {}).get('student_properties_aside', {})\
+            .get('month_terms_format', '0')
+        month_terms_format = True if month_terms_format == '1' else False
 
         overload_items = {
             'course': {'value': course, 'props': ['course', 'courses', 'course_title', 'course title', 'othercourse']},
@@ -264,11 +267,13 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 if new_value:
                     overload_items[k]['value'], student_properties = new_value, new_properties
 
-        #if overload_items['term']['value']:
-        #    student_properties['enrollment']['terms'] = overload_items['term']['value']
         if 'enrollment' not in student_properties:
             student_properties['enrollment'] = {}
-        student_properties['enrollment']['terms'] = dtime.strftime("%B %Y")
+
+        if not month_terms_format:
+            student_properties['enrollment']['terms'] = dtime.strftime("%B %Y")
+        elif overload_items['term']['value']:
+            student_properties['enrollment']['terms'] = overload_items['term']['value']
 
         if is_dnd_problem:
             answers = self._get_dnd_answer_values(event_data)
