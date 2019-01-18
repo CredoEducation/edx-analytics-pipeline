@@ -266,6 +266,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
         #if overload_items['term']['value']:
         #    student_properties['enrollment']['terms'] = overload_items['term']['value']
+        if 'enrollment' not in student_properties:
+            student_properties['enrollment'] = {}
         student_properties['enrollment']['terms'] = dtime.strftime("%B %Y")
 
         if is_dnd_problem:
