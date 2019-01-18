@@ -98,6 +98,9 @@ class StudentPropertiesPerOraTagsPerCourse(
             .get('student_properties', {})
         student_id = event.get('context').get('asides', {}).get('student_properties_aside', {}) \
             .get('student_id', None)
+        month_terms_format = event.get('context').get('asides', {}).get('student_properties_aside', {}) \
+            .get('month_terms_format', '0')
+        month_terms_format = True if month_terms_format == '1' else False
 
         overload_items = {
             'course': {'value': course, 'props': ['course', 'courses', 'course_title', 'course title', 'othercourse']},
@@ -109,11 +112,13 @@ class StudentPropertiesPerOraTagsPerCourse(
                 if new_value:
                     overload_items[k]['value'], student_properties = new_value, new_properties
 
-        #if overload_items['term']['value']:
-        #    student_properties['enrollment']['terms'] = overload_items['term']['value']
         if 'enrollment' not in student_properties:
             student_properties['enrollment'] = {}
-        student_properties['enrollment']['terms'] = dtime.strftime("%B %Y")
+
+        if not month_terms_format:
+            student_properties['enrollment']['terms'] = dtime.strftime("%B %Y")
+        elif overload_items['term']['value']:
+            student_properties['enrollment']['terms'] = overload_items['term']['value']
 
         question_text = u''
         prompts_list = []
