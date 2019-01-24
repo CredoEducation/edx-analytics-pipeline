@@ -31,7 +31,7 @@ def get_value_from_student_properties(key, properties):
                 tmp_properties[k.strip().lower()] = k
             for tk, tv in tmp_properties.iteritems():
                 if tk == key_updated:
-                    new_value = new_properties[tp][tv].replace('+', '-').replace(' ', '_')\
+                    new_value = new_properties[tp][tv].replace('+', '-')\
                         .replace("\n", "").replace("\t", "").replace("\r", "")
                     del new_properties[tp][tv]
     return new_value, new_properties
