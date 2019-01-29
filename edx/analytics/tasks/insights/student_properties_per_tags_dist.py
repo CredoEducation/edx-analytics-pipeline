@@ -66,7 +66,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                         question_text = q_text
         return question_text
 
-    def _get_answer_values(self, event_data):
+    def _get_answer_values(self, event_data, timestamp=None):
         answers = event_data['answers']
         submissions = event_data.get('submission', {})
         correct_maps = event_data.get('correct_map', {})
@@ -85,17 +85,20 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 answer_data['answer_display'] = '|'.join(processed_answers)
                 answer_data['correct'] = int(submission.get('correct', -1))
                 answer_data['correctness'] = correct_maps[answer_id].get('correctness', '')
+                answer_data['timestamp'] = timestamp
+                answer_data['attempts'] = event_data['attempts']
 
                 result_answers.append(answer_data)
         return result_answers
 
-    def _get_empty_rubric_answers(self, event_data):
+    def _get_empty_rubric_answers(self, event_data, timestamp=None):
         answers_parts = event_data.get('answer', {}).get('parts')
         if answers_parts is None:
             return ''
 
         answer = ' '.join([i.get('text', '') for i in answers_parts])
-        return [{'answer_value': answer, 'correct': 1, 'correctness': 'correct'}]
+        return [{'answer_value': answer, 'correct': 1, 'correctness': 'correct', 'timestamp': timestamp,
+             'attempts': event_data['attempt_number']}]
 
     def _get_dnd_correctness(self, event_data):
         correct = 0
@@ -116,7 +119,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             'max_grade': max_grade
         }
 
-    def _get_dnd_answer_values(self, event_data):
+    def _get_dnd_answer_values(self, event_data, timestamp=None):
         items_state = {}
         for st in event_data.get('item_state'):
             zone_title = st.get('zone', {}).get('title', '')
@@ -140,7 +143,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             'answer_value': '|'.join(answer_value_list),
             'answer_display': '|'.join(answer_display_list),
             'correct': dnd_correctness['correct'],
-            'correctness': dnd_correctness['correctness']
+            'correctness': dnd_correctness['correctness'],
+            'timestamp': timestamp,
+            'attempts': event_data.get('attempts', 1),
         }
         return [answer_data]
 
@@ -194,6 +199,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             else:
                 return
 
+        raw_timestamp = event['time']
         timestamp = eventlog.get_event_time_string(event)
         if timestamp is None:
             return
@@ -276,11 +282,11 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             student_properties['enrollment']['terms'] = overload_items['term']['value']
 
         if is_dnd_problem:
-            answers = self._get_dnd_answer_values(event_data)
+            answers = self._get_dnd_answer_values(event_data, raw_timestamp)
         elif is_ora_empty_rubrics:
-            answers = self._get_empty_rubric_answers(event_data)
+            answers = self._get_empty_rubric_answers(event_data, raw_timestamp)
         else:
-            answers = self._get_answer_values(event_data)
+            answers = self._get_answer_values(event_data, raw_timestamp)
 
         yield (course_id, org_id, overload_items['course']['value'], run, problem_id),\
               (timestamp, saved_tags, student_properties, is_correct, grade, int(user_id), display_name, question_text,
