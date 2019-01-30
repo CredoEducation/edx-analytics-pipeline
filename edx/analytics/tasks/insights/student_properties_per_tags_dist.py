@@ -149,15 +149,27 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         }
         return [answer_data]
 
+    def _prepare_user_data(self, item):
+        return {
+            'timestamp': item.get('timestamp'),
+            'attempts': item.get('attempts', 1),
+        }
+
+    def _clean_item(self, item):
+        new_item = copy.copy(item)
+        new_item['users'] = []
+        new_item['users_data'] = {}
+        del new_item['timestamp']
+        return new_item
+
     def _count_answer_values(self, user_answers):
         result = {}
-        for user_id, user_answers in user_answers.iteritems():
-            for item in user_answers:
+        for user_id, answers in user_answers.iteritems():
+            for item in answers:
                 answer_value = item['answer_value']
-                result.setdefault(answer_value, copy.copy(item))
+                result.setdefault(answer_value, self._clean_item(item))
                 result[answer_value]['count'] = result[answer_value].get('count', 0) + 1
-                if 'users' not in result[answer_value]:
-                    result[answer_value]['users'] = []
+                result[answer_value]['users_data'][user_id] = self._prepare_user_data(item)
                 result[answer_value]['users'].append(user_id)
                 result[answer_value]['correct'] = item['correct']
                 result[answer_value]['correctness'] = item['correctness']
