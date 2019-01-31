@@ -483,7 +483,7 @@ class StudentPropertiesAndTagsRecord(Record):
     total_submissions = IntegerField(nullable=False, description='Number of total submissions')
     correct_submissions = IntegerField(nullable=False, description='Number of correct submissions')
     correct_submissions_grades = FloatField(nullable=False, description='Number of correct submissions include partial correctness')
-    answers = StringField(length=1000000, nullable=True, description='Distribution of answers')
+    answers = StringField(length=2000000, nullable=True, description='Distribution of answers')
     users = StringField(length=1000000, nullable=True, description='Distribution of users')
 
 
