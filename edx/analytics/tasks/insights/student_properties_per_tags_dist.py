@@ -164,17 +164,18 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
     def _count_answer_values(self, user_answers):
         result = {}
+        submit_info = {}
         for user_id, answers in user_answers.iteritems():
             for item in answers:
                 answer_value = item['answer_value']
                 result.setdefault(answer_value, self._clean_item(item))
                 result[answer_value]['count'] = result[answer_value].get('count', 0) + 1
-                # result[answer_value]['users_data'][user_id] = self._prepare_user_data(item)
+                submit_info[user_id] = self._prepare_user_data(item)
                 result[answer_value]['users'].append(user_id)
                 result[answer_value]['correct'] = item['correct']
                 result[answer_value]['correctness'] = item['correctness']
 
-        return result
+        return result, submit_info
 
     def mapper(self, line):
         """
@@ -321,6 +322,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         num_correct = 0
         num_correct_grade = 0
         all_answers_json = None
+        submit_info_json = None
 
         user2total = {}
         user2correct = {}
@@ -396,8 +398,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             num_correct_grade = sum(user2correct_grade.values())
 
         if user2answers:
-            all_answers = self._count_answer_values(user2answers)
+            all_answers, submit_info = self._count_answer_values(user2answers)
             all_answers_json = json.dumps(all_answers)
+            submit_info_json = json.dumps(submit_info)
 
         if all_users_data:
             all_users_data_json = json.dumps(all_users_data)
@@ -411,13 +414,14 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 for u_id, u_val in props_info[i]['num_correct'].iteritems():
                     u_data[u_id] = [u_val, props_info[i]['num_correct_grade'][u_id]]
 
+                answers, _ = self._count_answer_values(props_info[i]['answers'])
                 props_list_values.append({
                     'props': prop_dict,
                     'type': props_info[i]['type'],
                     'total': sum(props_info[i]['num_total'].values()),
                     'correct': sum(props_info[i]['num_correct'].values()),
                     'correct_grade': sum(props_info[i]['num_correct_grade'].values()),
-                    'answers': self._count_answer_values(props_info[i]['answers']),
+                    'answers': answers,
                     'users': u_data
                 })
             props_json = json.dumps(props_list_values)
@@ -466,7 +470,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             correct_submissions=num_correct,
             correct_submissions_grades=num_correct_grade,
             answers=all_answers_json,
-            users=all_users_data_json).to_string_tuple()
+            users=all_users_data_json,
+            submit_info=submit_info_json).to_string_tuple()
 
 
 class StudentPropertiesAndTagsRecord(Record):
@@ -485,6 +490,7 @@ class StudentPropertiesAndTagsRecord(Record):
     correct_submissions_grades = FloatField(nullable=False, description='Number of correct submissions include partial correctness')
     answers = StringField(length=2000000, nullable=True, description='Distribution of answers')
     users = StringField(length=2000000, nullable=True, description='Distribution of users')
+    submit_info = StringField(length=2000000, nullable=True, description='Submit information for users')
 
 
 @workflow_entry_point
