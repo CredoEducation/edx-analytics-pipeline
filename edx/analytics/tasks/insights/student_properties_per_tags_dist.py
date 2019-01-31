@@ -268,7 +268,11 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         question_text = self._get_question_text(event_data)
         question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
 
-        saved_tags = event.get('context').get('asides', {}).get('tagging_aside', {}).get('saved_tags', {})
+        aside_name = 'tagging_aside'
+        if is_ora_empty_rubrics:
+            aside_name = 'tagging_ora_aside'
+
+        saved_tags = event.get('context').get('asides', {}).get(aside_name, {}).get('saved_tags', {})
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
         month_terms_format = event.get('context').get('asides', {}).get('student_properties_aside', {})\
