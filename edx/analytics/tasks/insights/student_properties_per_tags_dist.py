@@ -169,7 +169,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 answer_value = item['answer_value']
                 result.setdefault(answer_value, self._clean_item(item))
                 result[answer_value]['count'] = result[answer_value].get('count', 0) + 1
-                result[answer_value]['users_data'][user_id] = self._prepare_user_data(item)
+                # result[answer_value]['users_data'][user_id] = self._prepare_user_data(item)
                 result[answer_value]['users'].append(user_id)
                 result[answer_value]['correct'] = item['correct']
                 result[answer_value]['correctness'] = item['correctness']
