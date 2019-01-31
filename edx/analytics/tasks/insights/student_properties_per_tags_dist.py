@@ -169,7 +169,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 answer_value = item['answer_value']
                 result.setdefault(answer_value, self._clean_item(item))
                 result[answer_value]['count'] = result[answer_value].get('count', 0) + 1
-                result[answer_value]['users_data'][user_id] = self._prepare_user_data(item)
+                # result[answer_value]['users_data'][user_id] = self._prepare_user_data(item)
                 result[answer_value]['users'].append(user_id)
                 result[answer_value]['correct'] = item['correct']
                 result[answer_value]['correctness'] = item['correctness']
@@ -268,7 +268,11 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         question_text = self._get_question_text(event_data)
         question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
 
-        saved_tags = event.get('context').get('asides', {}).get('tagging_aside', {}).get('saved_tags', {})
+        aside_name = 'tagging_aside'
+        if is_ora_empty_rubrics:
+            aside_name = 'tagging_ora_aside'
+
+        saved_tags = event.get('context').get('asides', {}).get(aside_name, {}).get('saved_tags', {})
         student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('student_properties', {})
         month_terms_format = event.get('context').get('asides', {}).get('student_properties_aside', {})\
@@ -476,15 +480,15 @@ class StudentPropertiesAndTagsRecord(Record):
     run = StringField(length=255, nullable=False, description='Run')
     module_id = StringField(length=255, nullable=False, description='Problem id')
     display_name = StringField(length=2048, nullable=True, description='Problem Display Name')
-    question_text = StringField(length=1000000, nullable=True, description='Question Text')
+    question_text = StringField(length=2000000, nullable=True, description='Question Text')
     name_hash = StringField(length=255, nullable=True, description='Name Hash')
-    properties_data = StringField(length=1000000, nullable=True, description='Properties data in JSON format')
+    properties_data = StringField(length=2000000, nullable=True, description='Properties data in JSON format')
     tags = StringField(length=500000, nullable=True, description='Tags')
     total_submissions = IntegerField(nullable=False, description='Number of total submissions')
     correct_submissions = IntegerField(nullable=False, description='Number of correct submissions')
     correct_submissions_grades = FloatField(nullable=False, description='Number of correct submissions include partial correctness')
-    answers = StringField(length=1000000, nullable=True, description='Distribution of answers')
-    users = StringField(length=1000000, nullable=True, description='Distribution of users')
+    answers = StringField(length=2000000, nullable=True, description='Distribution of answers')
+    users = StringField(length=2000000, nullable=True, description='Distribution of users')
 
 
 @workflow_entry_point
