@@ -71,8 +71,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         submissions = event_data.get('submission', {})
         correct_maps = event_data.get('correct_map', {})
         result_answers = []
+        allowed_input_types = ['choicegroup', 'checkboxgroup', 'textline', 'formulaequationinput']
         for answer_id, submission in submissions.items():
-            if submission['input_type'] and submission['input_type'] in ['choicegroup', 'checkboxgroup']:
+            if submission['input_type'] and submission['input_type'] in allowed_input_types:
                 answer_data = {}
                 answer_value = answers[answer_id]
                 answer_data['answer_value'] = '|'.join(answer_value if isinstance(answer_value, list) else [answer_value])
