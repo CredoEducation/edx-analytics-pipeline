@@ -213,7 +213,6 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             else:
                 return
 
-        raw_timestamp = event['time']
         timestamp = eventlog.get_event_time_string(event)
         if timestamp is None:
             return
@@ -221,6 +220,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         dtime = eventlog.get_event_time(event)
         if dtime is None:
             return
+        dtime_ts = eventlog.get_timestamp_from_datetime(dtime)
 
         course_id = eventlog.get_course_id(event)
         if not course_id:
@@ -300,11 +300,11 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             student_properties['enrollment']['terms'] = overload_items['term']['value']
 
         if is_dnd_problem:
-            answers = self._get_dnd_answer_values(event_data, raw_timestamp)
+            answers = self._get_dnd_answer_values(event_data, dtime_ts)
         elif is_ora_empty_rubrics:
-            answers = self._get_empty_rubric_answers(event_data, raw_timestamp)
+            answers = self._get_empty_rubric_answers(event_data, dtime_ts)
         else:
-            answers = self._get_answer_values(event_data, raw_timestamp)
+            answers = self._get_answer_values(event_data, dtime_ts)
 
         yield (course_id, org_id, overload_items['course']['value'], run, problem_id),\
               (timestamp, saved_tags, student_properties, is_correct, grade, int(user_id), display_name, question_text,
