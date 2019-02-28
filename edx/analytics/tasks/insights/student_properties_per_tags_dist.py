@@ -12,7 +12,7 @@ from edx.analytics.tasks.common.mapreduce import MapReduceJobTask, MapReduceJobT
 from edx.analytics.tasks.common.mysql_load import MysqlInsertTask
 from edx.analytics.tasks.util.decorators import workflow_entry_point
 from edx.analytics.tasks.common.pathutil import EventLogSelectionDownstreamMixin, EventLogSelectionMixin
-from edx.analytics.tasks.util.record import Record, StringField, IntegerField, FloatField
+from edx.analytics.tasks.util.record import Record, StringField, IntegerField, FloatField, BooleanField
 
 
 log = logging.getLogger(__name__)
@@ -306,7 +306,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         else:
             answers = self._get_answer_values(event_data, dtime_ts)
 
-        yield (course_id, org_id, overload_items['course']['value'], run, problem_id),\
+        yield (course_id, org_id, overload_items['course']['value'], run, problem_id, is_ora_empty_rubrics),\
               (timestamp, saved_tags, student_properties, is_correct, grade, int(user_id), display_name, question_text,
                answers)
 
@@ -321,7 +321,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                                   grade, user_id, display_name, question_text)
 
         """
-        course_id, org_id, course, run, problem_id = key
+        course_id, org_id, course, run, problem_id, is_ora_block = key
 
         num_total = 0
         num_correct = 0
@@ -476,7 +476,8 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             correct_submissions_grades=num_correct_grade,
             answers=all_answers_json,
             users=all_users_data_json,
-            submit_info=submit_info_json).to_string_tuple()
+            submit_info=submit_info_json,
+            is_ora_block=is_ora_block).to_string_tuple()
 
 
 class StudentPropertiesAndTagsRecord(Record):
@@ -496,6 +497,7 @@ class StudentPropertiesAndTagsRecord(Record):
     answers = StringField(length=2000000, nullable=True, description='Distribution of answers')
     users = StringField(length=2000000, nullable=True, description='Distribution of users')
     submit_info = StringField(length=2000000, nullable=True, description='Submit information for users')
+    is_ora_block = BooleanField(default=False, nullable=False, description='True if the block is a ORA question.')
 
 
 @workflow_entry_point
