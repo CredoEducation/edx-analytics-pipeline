@@ -31,19 +31,20 @@ class StudentPropertiesPerOraTagsPerCourse(
     def _dist_earned_points_info(self, points):
         dist = defaultdict(int)
         dist_by_user = defaultdict(list)
-        result = []
+        result = {}
         for p in points:
             dist[(p['points'], p['name'])] += 1
             if p['student_id']:
                 dist_by_user[(p['points'], p['name'])].append(p['student_id'])
-        for r in dist:
-            points, name = r
-            result.append({
-                'points': points,
-                'name': name,
-                'count': dist[r],
-                'users': dist_by_user[(points, name)]
-            })
+        for key in dist:
+            p, name = key
+            result[name] = {
+                'points': p,
+                'answer_value': name,
+                'answer_display': name,
+                'count': dist[key],
+                'users': dist_by_user[key]
+            }
         return result
 
     def _sum_earned_points(self, points):
