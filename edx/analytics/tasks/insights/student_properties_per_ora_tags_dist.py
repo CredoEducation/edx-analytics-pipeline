@@ -4,6 +4,7 @@ import hashlib
 import json
 
 from collections import defaultdict
+from itertools import chain
 
 import edx.analytics.tasks.util.eventlog as eventlog
 import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
@@ -27,6 +28,11 @@ class StudentPropertiesPerOraTagsPerCourse(
 
     def output(self):
         return get_target_from_url(self.output_root)
+
+    def _get_user_list(self, points, user_info):
+        users = list(chain.from_iterable([v['users'] for _, v in points.iteritems()]))
+        result = dict([(u, user_info[u]) for u in users if u in user_info])
+        return result
 
     def _dist_earned_points_info(self, points):
         dist = defaultdict(int)
@@ -207,13 +213,15 @@ class StudentPropertiesPerOraTagsPerCourse(
         props_list_values = []
         if len(props) > 0:
             for i, prop_dict in enumerate(props):
+                dist_earned_points = self._dist_earned_points_info(props_info[i]['total_earned_points_info'])
                 props_list_values.append({
                     'props': prop_dict,
                     'type': props_info[i]['type'],
                     'total_earned_points': self._sum_earned_points(props_info[i]['total_earned_points_info']),
-                    'total_earned_points_dist': self._dist_earned_points_info(props_info[i]['total_earned_points_info']),
+                    'total_earned_points_dist': dist_earned_points,
                     'num_submissions_count': props_info[i]['num_submissions_count'],
-                    'points_possible': latest_points_possible
+                    'points_possible': latest_points_possible,
+                    'users': self._get_user_list(dist_earned_points, all_users_data),
                 })
             props_json = json.dumps(props_list_values)
 
