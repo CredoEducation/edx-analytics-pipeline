@@ -31,7 +31,7 @@ class StudentPropertiesPerOraTagsPerCourse(
 
     def _get_user_list(self, points, user_info):
         users = list(chain.from_iterable([v['users'] for _, v in points.iteritems()]))
-        result = dict([(u, user_info[u]) for u in users if u in user_info])
+        result = dict([(u, [0] + user_info[u]) for u in users if u in user_info])
         return result
 
     def _dist_earned_points_info(self, points):
