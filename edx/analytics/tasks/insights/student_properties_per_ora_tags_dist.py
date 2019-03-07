@@ -31,7 +31,7 @@ class StudentPropertiesPerOraTagsPerCourse(
 
     def _get_user_list(self, points, user_info):
         users = list(chain.from_iterable([v['users'] for _, v in points.iteritems()]))
-        result = dict([(u, [0] + user_info[u]) for u in users if u in user_info])
+        result = dict([(u, user_info[u]) for u in users if u in user_info])
         return result
 
     def _dist_earned_points_info(self, points):
@@ -205,7 +205,7 @@ class StudentPropertiesPerOraTagsPerCourse(
 
         if all_users_data:
             for student_id, student_points in all_users_data.iteritems():
-                all_users_data[student_id] = [round((student_points * 1.0) / latest_points_possible, 2)]
+                all_users_data[student_id] = [0, round((student_points * 1.0) / latest_points_possible, 2)]
             all_users_data_json = json.dumps(all_users_data)
 
         # convert properties dict to the JSON format
