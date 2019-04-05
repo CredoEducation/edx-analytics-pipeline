@@ -138,6 +138,7 @@ class StudentPropertiesPerOraTagsPerCourse(
         if prompts_list:
             question_text = u". ".join(prompts_list)
         question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
+        display_name = event.get('context').get('module', {}).get('display_name', '')
 
         parts = event.get('event', {}).get('parts', [])
         for part in parts:
@@ -151,7 +152,7 @@ class StudentPropertiesPerOraTagsPerCourse(
                 yield (course_id, org_id, overload_items['course']['value'], run,
                        ora_id, assessment_type, part_criterion_name),\
                       (timestamp, part_saved_tags, student_properties,
-                       part_points_possible, part_points_scored, question_text)
+                       part_points_possible, part_points_scored, display_name, question_text)
 
     def reducer(self, key, values):
         course_id, org_id, course, run, ora_id, assessment_type, criterion_name = key
@@ -160,6 +161,7 @@ class StudentPropertiesPerOraTagsPerCourse(
         num_submissions_count = 0
 
         latest_timestamp = None
+        latest_display_name = u''
         latest_question_text = u''
         latest_tags = None
         latest_points_possible = None
@@ -173,9 +175,11 @@ class StudentPropertiesPerOraTagsPerCourse(
 
         # prepare base dicts for tags and properties
 
-        for timestamp, saved_tags, student_properties, points_possible, points_scored, question_text in values:
+        for timestamp, saved_tags, student_properties, points_possible, points_scored, display_name, question_text in values:
             if latest_timestamp is None or timestamp > latest_timestamp:
                 latest_timestamp = timestamp
+                if display_name:
+                    latest_display_name = display_name
                 if question_text:
                     latest_question_text = question_text
                 latest_tags = saved_tags.copy() if saved_tags else None
@@ -260,6 +264,7 @@ class StudentPropertiesPerOraTagsPerCourse(
             run=run,
             module_id=ora_id,
             criterion_name=criterion_name,
+            display_name=latest_display_name,
             question_text=latest_question_text,
             name_hash=name_hash,
             assessment_type=assessment_type,
@@ -279,6 +284,7 @@ class StudentPropertiesAndOraTagsRecord(Record):
     run = StringField(length=255, nullable=False, description='Run')
     module_id = StringField(length=255, nullable=False, description='ORA id')
     criterion_name = StringField(length=255, nullable=False, description='Criterion name')
+    display_name = StringField(length=2048, nullable=True, description='Problem Display Name')
     question_text = StringField(length=150000, nullable=True, description='Question Text')
     name_hash = StringField(length=255, nullable=True, description='Name Hash')
     assessment_type = StringField(length=255, nullable=False, description='Assessment type')
