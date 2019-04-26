@@ -1,6 +1,8 @@
 """Support for reading tracking event logs."""
 
 import datetime
+import time
+import pytz
 import logging
 import re
 
@@ -135,6 +137,11 @@ def get_event_time(event):
         return datetime.datetime.strptime(get_event_time_string(event), '%Y-%m-%dT%H:%M:%S.%f')
     except Exception:  # pylint: disable=broad-except
         return None
+
+
+def get_timestamp_from_datetime(dt):
+    dt = dt.replace(tzinfo=pytz.utc)
+    return int(time.mktime(dt.timetuple()))
 
 
 def get_event_username(event):
@@ -290,4 +297,14 @@ def get_course_id(event, from_url=False):
         if course_key:
             return unicode(course_key)
 
+    return None
+
+
+def get_user_id(event):
+    event_context = event.get('context')
+    if event_context is None:
+        return None
+    user_id = event_context.get('user_id', None)
+    if user_id:
+        return int(user_id)
     return None
