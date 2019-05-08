@@ -267,8 +267,21 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             grade = 1 if is_correct else 0
 
         display_name = event.get('context').get('module', {}).get('display_name', '')
-        question_text = self._get_question_text(event_data)
-        question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
+
+        question_text = ''
+        if event_type == 'openassessmentblock.create_submission':
+            prompts_list = []
+            prompts = event.get('event', {}).get('prompts', [])
+            if prompts:
+                for prompt in prompts:
+                    if 'description' in prompt:
+                        prompts_list.append(prompt['description'])
+
+            if prompts_list:
+                question_text = u". ".join(prompts_list)
+        else:
+            question_text = self._get_question_text(event_data)
+            question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
 
         aside_name = 'tagging_aside'
         if is_ora_empty_rubrics:
