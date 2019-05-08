@@ -143,6 +143,8 @@ class StudentPropertiesPerOraTagsPerCourse(
         parts = event.get('event', {}).get('parts', [])
         for part in parts:
             part_criterion_name = part.get('criterion', {}).get('name', None)
+            if part_criterion_name:
+                part_criterion_name = part_criterion_name.replace(":", " ")
             part_points_possible = int(part.get('criterion', {}).get('points_possible', 0))
             part_saved_tags = saved_tags.get(part_criterion_name, {})
             part_points_scored = part.get('option', {})
@@ -253,7 +255,8 @@ class StudentPropertiesPerOraTagsPerCourse(
         if tags_extended_lst:
             tags_extended_lst_json = json.dumps(tags_extended_lst)
 
-        name_hash = hashlib.md5(criterion_name).hexdigest()
+        common_name = u''.join([latest_display_name, latest_question_text, criterion_name])
+        name_hash = hashlib.md5(common_name).hexdigest()
 
         # save values to the database table
 
