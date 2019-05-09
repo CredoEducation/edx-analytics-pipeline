@@ -141,6 +141,8 @@ class StudentPropertiesPerOraTagsPerCourse(
         display_name = event.get('context').get('module', {}).get('display_name', '')
 
         parts = event.get('event', {}).get('parts', [])
+        answer_parts = event.get('event', {}).get('answer', {}).get('parts', [])
+        submit_answer = ' '.join([d.get('text') for d in answer_parts])
         for part in parts:
             part_criterion_name = part.get('criterion', {}).get('name', None)
             if part_criterion_name:
@@ -149,6 +151,7 @@ class StudentPropertiesPerOraTagsPerCourse(
             part_saved_tags = saved_tags.get(part_criterion_name, {})
             part_points_scored = part.get('option', {})
             part_points_scored['student_id'] = int(student_id) if student_id else None
+            part_points_scored['answer'] = submit_answer
 
             if part_points_possible > 0:
                 yield (course_id, org_id, overload_items['course']['value'], run,
@@ -174,6 +177,7 @@ class StudentPropertiesPerOraTagsPerCourse(
 
         all_users_data = {}
         all_users_data_json = None
+        submit_info = {}
 
         # prepare base dicts for tags and properties
 
@@ -195,6 +199,8 @@ class StudentPropertiesPerOraTagsPerCourse(
 
             total_earned_points_info.append(points_scored)
             num_submissions_count += 1
+            if student_id and points_scored['answer']:
+                submit_info[student_id] = {'answer_value': points_scored['answer']}
 
             for prop_type, prop_dict in student_properties.iteritems():
                 if prop_dict:
@@ -255,8 +261,11 @@ class StudentPropertiesPerOraTagsPerCourse(
         if tags_extended_lst:
             tags_extended_lst_json = json.dumps(tags_extended_lst)
 
+        submit_info_json = None
+        submit_info_json = json.dumps(submit_info)
+
         common_name = u''.join([latest_display_name, latest_question_text, criterion_name])
-        name_hash = hashlib.md5(common_name).hexdigest()
+        name_hash = hashlib.md5(common_name.encode('utf-8')).hexdigest()
 
         # save values to the database table
 
@@ -277,7 +286,8 @@ class StudentPropertiesPerOraTagsPerCourse(
             total_earned_points=self._sum_earned_points(total_earned_points_info),
             total_earned_points_dist=json.dumps(self._dist_earned_points_info(total_earned_points_info)),
             submissions_count=num_submissions_count,
-            users=all_users_data_json).to_string_tuple()
+            users=all_users_data_json,
+            submit_info=submit_info_json).to_string_tuple()
 
 
 class StudentPropertiesAndOraTagsRecord(Record):
@@ -298,6 +308,7 @@ class StudentPropertiesAndOraTagsRecord(Record):
     submissions_count = IntegerField(nullable=False, description='Submissions count')
     total_earned_points_dist = StringField(length=150000, nullable=True, description='Distribution of earned points')
     users = StringField(length=150000, nullable=True, description='Distribution of users')
+    submit_info = StringField(length=2000000, nullable=True, description='Submit information for users')
 
 
 @workflow_entry_point
