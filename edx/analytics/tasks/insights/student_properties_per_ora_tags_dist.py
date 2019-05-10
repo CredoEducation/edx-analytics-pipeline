@@ -199,7 +199,8 @@ class StudentPropertiesPerOraTagsPerCourse(
 
             total_earned_points_info.append(points_scored)
             num_submissions_count += 1
-            submit_info[student_id] = {'answer_value': points_scored['answer']}
+            if student_id and points_scored['answer']:
+                submit_info[student_id] = {'answer_value': points_scored['answer']}
 
             for prop_type, prop_dict in student_properties.iteritems():
                 if prop_dict:
@@ -261,8 +262,7 @@ class StudentPropertiesPerOraTagsPerCourse(
             tags_extended_lst_json = json.dumps(tags_extended_lst)
 
         submit_info_json = None
-        if submit_info:
-            submit_info_json = json.dumps(submit_info)
+        submit_info_json = json.dumps(submit_info)
 
         common_name = u''.join([latest_display_name, latest_question_text, criterion_name])
         name_hash = hashlib.md5(common_name.encode('utf-8')).hexdigest()
