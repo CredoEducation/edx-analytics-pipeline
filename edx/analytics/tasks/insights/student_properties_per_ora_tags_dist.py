@@ -265,7 +265,7 @@ class StudentPropertiesPerOraTagsPerCourse(
             submit_info_json = json.dumps(submit_info)
 
         common_name = u''.join([latest_display_name, latest_question_text, criterion_name])
-        name_hash = hashlib.md5(common_name).hexdigest()
+        name_hash = hashlib.md5(common_name.encode('utf-8')).hexdigest()
 
         # save values to the database table
 
