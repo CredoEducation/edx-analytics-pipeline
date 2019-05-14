@@ -98,8 +98,14 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             return ''
 
         answer = ' '.join([i.get('text', '') for i in answers_parts])
-        return [{'answer_value': answer, 'correct': 1, 'correctness': 'correct', 'timestamp': timestamp,
-             'attempts': event_data['attempt_number']}]
+        return [{
+            'answer_value': answer,
+            'correct': 1,
+            'correctness': 'correct',
+            'timestamp': timestamp,
+            'attempts': event_data['attempt_number'],
+            'answer_display': answer,
+        }]
 
     def _get_dnd_correctness(self, event_data):
         correct = 0
