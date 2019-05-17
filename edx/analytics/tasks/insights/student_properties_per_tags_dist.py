@@ -200,13 +200,16 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         event_type = event.get('event_type')
 
         if event_type not in ('problem_check', 'edx.drag_and_drop_v2.item.dropped',
-                              'openassessmentblock.create_submission')\
+                              'openassessmentblock.create_submission',
+                              'sequential_block.viewed',)\
                 or event.get('event_source') != 'server':
             return
 
         event_data = eventlog.get_event_data(event)
         if event_data is None:
             return
+
+        is_block_view = event_type == 'sequential_block.viewed'
 
         is_dnd_problem = event_type == 'edx.drag_and_drop_v2.item.dropped'
 
@@ -247,11 +250,20 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             problem_id = event.get('context').get('module', {}).get('usage_key')
         elif is_ora_empty_rubrics:
             problem_id = event.get('context', {}).get('module', {}).get('usage_key')
+        elif is_block_view:
+            problem_id = event_data.get('usage_key')
         else:
             problem_id = event_data.get('problem_id')
 
         if not problem_id:
             return
+
+        if 'openassessment' in problem_id:
+            rubrics = event_data.get('rubric_count', 1)
+            if rubrics > 0:
+                return
+            else:
+                is_ora_empty_rubrics = True
 
         if is_dnd_problem:
             dnd_correctness = self._get_dnd_correctness(event_data)
@@ -260,6 +272,9 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             max_grade = dnd_correctness['max_grade']
         elif is_ora_empty_rubrics:
             is_correct = True
+            max_grade = 0
+        elif is_block_view:
+            is_correct = False
             max_grade = 0
         else:
             is_correct = event_data.get('success') == 'correct'
@@ -271,9 +286,24 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         else:
             grade = 1 if is_correct else 0
 
-        display_name = event.get('context').get('module', {}).get('display_name', '')
+        aside_name = 'tagging_aside'
+        if is_ora_empty_rubrics:
+            aside_name = 'tagging_ora_aside'
 
-        question_text = ''
+        if is_block_view:
+            display_name = event_data.get('display_name', '')
+            question_text = event_data.get('question_text', '')
+            saved_tags = {}
+            student_properties = event_data.get('student_properties_aside', {}).get('student_properties', {})
+        else:
+            display_name = event.get('context').get('module', {}).get('display_name', '')
+            question_text = self._get_question_text(event_data)
+            saved_tags = event.get('context').get('asides', {}).get(aside_name, {}).get('saved_tags', {})
+            student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {}) \
+                .get('student_properties', {})
+
+        question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
+
         if event_type == 'openassessmentblock.create_submission':
             prompts_list = []
             prompts = event.get('event', {}).get('prompts', [])
@@ -288,13 +318,6 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             question_text = self._get_question_text(event_data)
             question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
 
-        aside_name = 'tagging_aside'
-        if is_ora_empty_rubrics:
-            aside_name = 'tagging_ora_aside'
-
-        saved_tags = event.get('context').get('asides', {}).get(aside_name, {}).get('saved_tags', {})
-        student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
-            .get('student_properties', {})
         month_terms_format = event.get('context').get('asides', {}).get('student_properties_aside', {})\
             .get('month_terms_format', '0')
         month_terms_format = True if month_terms_format == '1' else False
@@ -321,12 +344,14 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
             answers = self._get_dnd_answer_values(event_data, dtime_ts)
         elif is_ora_empty_rubrics:
             answers = self._get_empty_rubric_answers(event_data, dtime_ts)
+        elif is_block_view:
+            answers = []
         else:
             answers = self._get_answer_values(event_data, dtime_ts)
 
         yield (course_id, org_id, overload_items['course']['value'], run, problem_id, is_ora_empty_rubrics),\
               (timestamp, saved_tags, student_properties, is_correct, grade, int(user_id), display_name, question_text,
-               answers)
+               answers, is_block_view)
 
     def reducer(self, key, values):
         """
@@ -367,10 +392,10 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
         # prepare base dicts for tags and properties
 
         for timestamp, saved_tags, student_properties, is_correct,\
-                grade, user_id, display_name, question_text, answers in values:
+                grade, user_id, display_name, question_text, answers, initial in values:
 
-            if latest_timestamp is None or timestamp > latest_timestamp:
-                latest_timestamp = timestamp
+            if latest_timestamp is None or (timestamp > latest_timestamp and not initial):
+                latest_timestamp = timestamp if not initial else None
                 if display_name:
                     latest_display_name = display_name
                 if question_text:
@@ -382,7 +407,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
 
             current_user_last_timestamp = user2last_timestamp.get(user_id, None)
             if current_user_last_timestamp is None or timestamp > current_user_last_timestamp:
-                user2last_timestamp[user_id] = timestamp
+                user2last_timestamp[user_id] = timestamp if not initial else None
                 user2correct[user_id] = 1 if is_correct else 0
                 user2correct_grade[user_id] = grade
                 user2answers[user_id] = answers

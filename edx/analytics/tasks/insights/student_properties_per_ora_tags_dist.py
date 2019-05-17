@@ -63,13 +63,14 @@ class StudentPropertiesPerOraTagsPerCourse(
         event, _ = value
 
         event_type = event.get('event_type')
+        is_block_view = event_type == 'sequential_block.viewed'
         ora_event_types = {'openassessmentblock.staff_assess': 'staff',
                            'openassessmentblock.self_assess': 'self',
                            'openassessmentblock.peer_assess': 'peer'}
 
-        assessment_type = ora_event_types.get(event_type, None)
+        assessment_type = 'staff' if is_block_view else ora_event_types.get(event_type, None)
 
-        if not assessment_type or event.get('event_source') != 'server':
+        if (not assessment_type and not is_block_view) or event.get('event_source') != 'server':
             return
 
         timestamp = eventlog.get_event_time_string(event)
@@ -96,17 +97,34 @@ class StudentPropertiesPerOraTagsPerCourse(
         if event_data is None:
             return
 
-        ora_id = event.get('context').get('module', {}).get('usage_key')
+        rubric_count = event_data.get('rubric_count')
+        if is_block_view and not rubric_count:
+            return
+
+        if is_block_view:
+            ora_id = event_data.get('usage_key')
+        else:
+            ora_id = event.get('context').get('module', {}).get('usage_key')
+
+
         if not ora_id:
             return
 
-        saved_tags = event.get('context').get('asides', {}).get('tagging_ora_aside', {}).get('saved_tags', {})
-        student_properties = event.get('context').get('asides', {}).get('student_properties_aside', {})\
-            .get('student_properties', {})
-        student_id = event.get('context').get('asides', {}).get('student_properties_aside', {}) \
-            .get('student_id', None)
-        month_terms_format = event.get('context').get('asides', {}).get('student_properties_aside', {}) \
-            .get('month_terms_format', '0')
+        if is_block_view:
+            saved_tags = {}
+            student_properties = event_data.get('student_properties_aside', {}).get('student_properties', {})
+            student_id = event.get('context', {}).get('user_id')
+            month_terms_format = event_data.get('student_properties_aside', {}) \
+                .get('month_terms_format', '0')
+        else:
+            saved_tags = event.get('context', {}).get('asides', {}).get('tagging_ora_aside', {}).get('saved_tags', {})
+            student_properties = event.get('context', {}).get('asides', {}).get('student_properties_aside', {}) \
+                .get('student_properties', {})
+            student_id = event.get('context', {}).get('asides', {}).get('student_properties_aside', {}) \
+                .get('student_id', None)
+            month_terms_format = event.get('context').get('asides', {}).get('student_properties_aside', {}) \
+                .get('month_terms_format', '0')
+
         month_terms_format = True if month_terms_format == '1' else False
 
         overload_items = {
@@ -135,29 +153,53 @@ class StudentPropertiesPerOraTagsPerCourse(
                 if 'description' in prompt:
                     prompts_list.append(prompt['description'])
 
-        if prompts_list:
-            question_text = u". ".join(prompts_list)
-        question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
+        if is_block_view:
+            question_text = event_data.get('question_text', '')
+        else:
+            if prompts_list:
+                question_text = u". ".join(prompts_list)
+            question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
         display_name = event.get('context').get('module', {}).get('display_name', '')
 
-        parts = event.get('event', {}).get('parts', [])
-        answer_parts = event.get('event', {}).get('answer', {}).get('parts', [])
-        submit_answer = ' '.join([d.get('text') for d in answer_parts])
-        for part in parts:
-            part_criterion_name = part.get('criterion', {}).get('name', None)
-            if part_criterion_name:
-                part_criterion_name = part_criterion_name.replace(":", " ")
-            part_points_possible = int(part.get('criterion', {}).get('points_possible', 0))
-            part_saved_tags = saved_tags.get(part_criterion_name, {})
-            part_points_scored = part.get('option', {})
-            part_points_scored['student_id'] = int(student_id) if student_id else None
-            part_points_scored['answer'] = submit_answer
+        if is_block_view:
+            rubrics = event_data.get('rubrics', [])
 
-            if part_points_possible > 0:
-                yield (course_id, org_id, overload_items['course']['value'], run,
-                       ora_id, assessment_type, part_criterion_name),\
-                      (timestamp, part_saved_tags, student_properties,
-                       part_points_possible, part_points_scored, display_name, question_text)
+            for r in rubrics:
+                part_criterion_name = r.get('label')
+                part_points_possible = 0
+                part_saved_tags = saved_tags.get(part_criterion_name, {})
+                for opt in r.get('options', []):
+                    points = opt.get('points', 0)
+                    if points > part_points_possible:
+                        part_points_possible = points
+                part_points_scored = {'points': 0, 'student_id': int(student_id) if student_id else None, 'answer': '',
+                                      'name': ''}
+                if part_points_possible > 0:
+                    yield (
+                        (course_id, org_id, overload_items['course']['value'], run, ora_id, assessment_type,
+                         part_criterion_name),
+                        (timestamp, part_saved_tags, student_properties, part_points_possible, part_points_scored,
+                         display_name, question_text, is_block_view)
+                    )
+        else:
+            parts = event.get('event', {}).get('parts', [])
+            answer_parts = event.get('event', {}).get('answer', {}).get('parts', [])
+            submit_answer = ' '.join([d.get('text') for d in answer_parts])
+            for part in parts:
+                part_criterion_name = part.get('criterion', {}).get('name', None)
+                if part_criterion_name:
+                    part_criterion_name = part_criterion_name.replace(":", " ")
+                part_points_possible = int(part.get('criterion', {}).get('points_possible', 0))
+                part_saved_tags = saved_tags.get(part_criterion_name, {})
+                part_points_scored = part.get('option', {})
+                part_points_scored['student_id'] = int(student_id) if student_id else None
+                part_points_scored['answer'] = submit_answer
+
+                if part_points_possible > 0:
+                    yield (course_id, org_id, overload_items['course']['value'], run,
+                           ora_id, assessment_type, part_criterion_name),\
+                          (timestamp, part_saved_tags, student_properties,
+                           part_points_possible, part_points_scored, display_name, question_text, is_block_view)
 
     def reducer(self, key, values):
         course_id, org_id, course, run, ora_id, assessment_type, criterion_name = key
@@ -181,8 +223,9 @@ class StudentPropertiesPerOraTagsPerCourse(
 
         # prepare base dicts for tags and properties
 
-        for timestamp, saved_tags, student_properties, points_possible, points_scored, display_name, question_text in values:
-            if latest_timestamp is None or timestamp > latest_timestamp:
+        for timestamp, saved_tags, student_properties, points_possible, points_scored, display_name, question_text, \
+            initial in values:
+            if latest_timestamp is None or (timestamp > latest_timestamp and not initial):
                 latest_timestamp = timestamp
                 if display_name:
                     latest_display_name = display_name
@@ -191,16 +234,17 @@ class StudentPropertiesPerOraTagsPerCourse(
                 latest_tags = saved_tags.copy() if saved_tags else None
                 latest_points_possible = points_possible
 
-            student_id = points_scored['student_id']
-            student_points = points_scored['points']
+            if num_submissions_count == 0 or not initial:
+                student_id = points_scored['student_id']
+                student_points = points_scored['points']
 
-            if student_id:
-                all_users_data[student_id] = student_points
+                if student_id:
+                    all_users_data[student_id] = student_points
 
-            total_earned_points_info.append(points_scored)
-            num_submissions_count += 1
-            if student_id and points_scored['answer']:
-                submit_info[student_id] = {'answer_value': points_scored['answer']}
+                total_earned_points_info.append(points_scored)
+                num_submissions_count += 1
+                if student_id and points_scored['answer']:
+                    submit_info[student_id] = {'answer_value': points_scored['answer']}
 
             for prop_type, prop_dict in student_properties.iteritems():
                 if prop_dict:
@@ -212,8 +256,9 @@ class StudentPropertiesPerOraTagsPerCourse(
                             'num_submissions_count': 0,
                         })
                     prop_idx = props.index(prop_dict)
-                    props_info[prop_idx]['total_earned_points_info'].append(points_scored)
-                    props_info[prop_idx]['num_submissions_count'] += 1
+                    if not initial:
+                        props_info[prop_idx]['total_earned_points_info'].append(points_scored)
+                        props_info[prop_idx]['num_submissions_count'] += 1
 
         if all_users_data:
             for student_id, student_points in all_users_data.iteritems():
