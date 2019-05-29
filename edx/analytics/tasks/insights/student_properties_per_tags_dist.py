@@ -193,6 +193,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                                                                 grade, user_id, display_name, question_text)
 
         """
+        line = line.replace('\x00', '')
         value = self.get_event_and_date_string(line)
         if value is None:
             return

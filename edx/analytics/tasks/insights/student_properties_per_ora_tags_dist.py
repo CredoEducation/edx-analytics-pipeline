@@ -57,6 +57,7 @@ class StudentPropertiesPerOraTagsPerCourse(
         return sum([p['points'] for p in points])
 
     def mapper(self, line):
+        line = line.replace('\x00', '')
         value = self.get_event_and_date_string(line)
         if value is None:
             return
