@@ -266,6 +266,8 @@ class EventLogSelectionMixin(EventLogSelectionDownstreamMixin):
 
     def get_event_and_date_string(self, line):
         """Default mapper implementation, that always outputs the log line, but with a configurable key."""
+        if ord(line[-2]) == 0:
+            line = line[:-2]
         event = eventlog.parse_json_event(line)
         if event is None:
             self.incr_counter('Event', 'Discard Unparseable Event', 1)
