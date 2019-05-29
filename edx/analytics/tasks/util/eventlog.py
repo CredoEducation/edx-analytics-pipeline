@@ -38,6 +38,7 @@ def parse_json_event(line, nested=False):
     Apparently some eventlog entries are pure JSON, while others are
     JSON that are prepended by a timestamp.
     """
+    line = line.rstrip(' \t\r\n\0')
     try:
         parsed = decode_json(line)
     except Exception:
