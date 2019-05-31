@@ -287,7 +287,7 @@ class StudentPropertiesPerTagsPerCourse(StudentPropertiesPerTagsPerCourseDownstr
                 question_text = u". ".join(prompts_list)
         else:
             question_text = self._get_question_text(event_data)
-            question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
+        question_text = question_text.replace("\n", " ").replace("\t", " ").replace("\r", "")
 
         aside_name = 'tagging_aside'
         if is_ora_empty_rubrics:
