@@ -85,7 +85,8 @@ class StudentPropertiesPerOraTagsPerCourse(
             return
 
         user_id = event.get('context').get('user_id', None)
-        if not user_id:
+        if not user_id or user_id in [1060812, 1099416, 1923502, 7087266, 1923510, 7179112, 1061429, 1354180, 1246728,
+                                      1066158, 1062785, 1093165, 1101450, 7099734, 1097329]:
             return
 
         org_id = opaque_key_util.get_org_id_for_course(course_id)
