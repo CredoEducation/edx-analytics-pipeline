@@ -602,15 +602,7 @@ class OraParser(EventParser):
     def get_answers(self, event, correctness, timestamp, *args, **kwargs):
         answer = kwargs['answer']
         answer_display = answer.get('option', {}).get('name', '')
-        answer_value = answer_display
-
-        return [{
-            "answer_display": answer_display,
-            "answer_value": answer_value,
-            "correct": 1 if correctness.earned_grade == correctness.max_grade else 0,
-            "correctness": "correct" if correctness.earned_grade == correctness.max_grade else "incorrect",
-            "points": correctness.earned_grade
-        }]
+        return answer_display
 
     def get_question_text(self, event, *args, **kwargs):
         question_text = ''

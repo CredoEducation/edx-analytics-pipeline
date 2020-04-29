@@ -27,8 +27,7 @@ class RedShiftBaseTask(RedShiftDownstreamMixin, EventLogSelectionMixin, MapReduc
         'openassessmentblock.staff_assess',
         'sequential_block.viewed',
         'sequential_block.remove_view',
-        'xblock.image-explorer.hotspot.opened',
-        'openassessmentblock.staff_assess'
+#        'xblock.image-explorer.hotspot.opened',
     ]
 
     def output(self):
