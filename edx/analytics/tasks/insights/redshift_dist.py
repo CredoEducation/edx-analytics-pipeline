@@ -128,7 +128,7 @@ class RedShiftRecord(Record):
     grade = FloatField(nullable=True, description='Grade')
     answers = StringField(length=2048, nullable=True, description='Answer')
     correctness = StringField(length=255, nullable=True, description='Correctness')
-    attempts = StringField(length=4096, nullable=True, description='Attempts')
+    attempts = StringField(length=12000, nullable=True, description='Attempts')
 
 
 @workflow_entry_point
