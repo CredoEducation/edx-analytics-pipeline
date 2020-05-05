@@ -126,9 +126,9 @@ class RedShiftRecord(Record):
     properties_data = StringField(length=4096, nullable=True, description='Properties data in JSON format')
     tags = StringField(length=4096, nullable=True, description='Tags')
     grade = FloatField(nullable=True, description='Grade')
-    answers = StringField(length=12000, nullable=True, description='Answer')
+    answers = StringField(length=100000, nullable=True, description='Answer')
     correctness = StringField(length=255, nullable=True, description='Correctness')
-    attempts = StringField(length=12000, nullable=True, description='Attempts')
+    attempts = StringField(length=100000, nullable=True, description='Attempts')
 
 
 @workflow_entry_point
