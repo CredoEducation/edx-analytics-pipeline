@@ -73,11 +73,11 @@ class EventData(object):
         self.student_properties = student_properties
         self.grade = grade
         self.user_id = user_id
-        self.display_name = display_name
-        self.question_text = question_text
+        self.display_name = display_name.replace("\n", " ").replace("\t", " ") if display_name else ""
+        self.question_text = question_text.replace("\n", " ").replace("\t", " ") if question_text else ""
         self.question_hash = question_hash
         self.question_text_hash = question_text_hash
-        self.answers = answers
+        self.answers = answers.replace("\n", " ").replace("\t", " ") if answers else ""
         self.submit_info = submit_info
         self.is_ora_empty_rubrics = is_ora_empty_rubrics
         self.is_block_view = is_block_view
@@ -208,7 +208,7 @@ class EventParser(object):
     def convert_tags(self, saved_tags):
         tags_extended_lst = []
         for _, tag_val in saved_tags.items():
-            tag_val_lst = [tag_val] if isinstance(tag_val, str) else tag_val
+            tag_val_lst = [tag_val] if isinstance(tag_val, basestring) else tag_val
             for tag in tag_val_lst:
                 tag_split_lst = tag.split(' - ')
                 for idx, _ in enumerate(tag_split_lst):

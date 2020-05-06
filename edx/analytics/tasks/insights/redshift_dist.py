@@ -8,6 +8,7 @@ from edx.analytics.tasks.util.decorators import workflow_entry_point
 from edx.analytics.tasks.common.pathutil import EventLogSelectionDownstreamMixin, EventLogSelectionMixin
 from edx.analytics.tasks.util.record import Record, StringField, IntegerField, FloatField, BooleanField, DateTimeField
 from edx.analytics.tasks.insights.event_parser import EventProcessor
+from edx.analytics.tasks.common.mysql_load import MysqlInsertTask
 
 
 log = logging.getLogger(__name__)
@@ -111,23 +112,23 @@ class RedShiftBaseTask(RedShiftDownstreamMixin, EventLogSelectionMixin, MapReduc
 
 class RedShiftRecord(Record):
     course_id = StringField(length=255, nullable=False, description='Course id')
-    org_id = StringField(length=255, nullable=False, description='Org id')
+    org_id = StringField(length=80, nullable=False, description='Org id')
     course = StringField(length=255, nullable=False, description='Course')
-    run = StringField(length=255, nullable=False, description='Run')
-    prop_term = StringField(length=255, nullable=True, description='Term')
+    run = StringField(length=80, nullable=False, description='Run')
+    prop_term = StringField(length=20, nullable=True, description='Term')
     module_id = StringField(length=255, nullable=False, description='Problem id')
     user_id = IntegerField(nullable=False, description='User ID')
     timestamp = DateTimeField(nullable=False, description='Event timestamp')
     display_name = StringField(length=2048, nullable=True, description='Problem Display Name')
     question_text = StringField(length=65535, nullable=True, description='Question Text')
-    name_hash = StringField(length=255, nullable=True, description='Name Hash')
+    name_hash = StringField(length=80, nullable=True, description='Name Hash')
     is_ora_block = BooleanField(default=False, nullable=False, description='True if the block is a ORA question')
-    ora_criterion_name = StringField(nullable=True, description='ORA criterion name')
+    ora_criterion_name = StringField(length=40, nullable=True, description='ORA criterion name')
     properties_data = StringField(length=65535, nullable=True, description='Properties data in JSON format')
-    tags = StringField(length=12000, nullable=True, description='Tags')
+    tags = StringField(length=4096, nullable=True, description='Tags')
     grade = FloatField(nullable=True, description='Grade')
     answers = StringField(length=65535, nullable=True, description='Answer')
-    correctness = StringField(length=255, nullable=True, description='Correctness')
+    correctness = StringField(length=15, nullable=True, description='Correctness')
     attempts = StringField(length=65535, nullable=True, description='Attempts')
 
 
@@ -135,6 +136,7 @@ class RedShiftRecord(Record):
 class RedShiftDistributionWorkflow(RedShiftDownstreamMixin,
                                    EventLogSelectionDownstreamMixin,
                                    MapReduceJobTaskMixin,
+                                   MysqlInsertTask,
                                    luigi.WrapperTask):
 
     # Override the parameter that normally defaults to false. This ensures that the table will always be overwritten.
@@ -144,10 +146,37 @@ class RedShiftDistributionWorkflow(RedShiftDownstreamMixin,
         significant=False
     )
 
-    def requires(self):
+    @property
+    def insert_source_task(self):
         return RedShiftBaseTask(
             n_reduce_tasks=self.n_reduce_tasks,
             output_root=self.output_root,
             interval=self.interval,
             source=self.source
         )
+
+    @property
+    def table(self):
+        return "tracking_events"
+
+    @property
+    def columns(self):
+        return RedShiftRecord.get_sql_schema()
+
+    @property
+    def auto_primary_key(self):
+        return None
+
+    @property
+    def default_columns(self):
+        return []
+
+    @property
+    def indexes(self):
+        return [
+            ('course_id',),
+            ('org_id',),
+            ('module_id',),
+            ('user_id',),
+            ('timestamp',),
+        ]

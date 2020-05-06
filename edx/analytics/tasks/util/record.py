@@ -602,7 +602,7 @@ class StringField(Field):  # pylint: disable=abstract-method
     @property
     def sql_base_type(self):
         if self.length:
-            if self.length > 10240:
+            if self.length > 65535:
                 return 'LONGTEXT'
             elif self.length > 255:
                 return 'TEXT'
