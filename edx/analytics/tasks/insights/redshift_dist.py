@@ -123,7 +123,7 @@ class RedShiftRecord(Record):
     question_text = StringField(length=65535, nullable=True, description='Question Text')
     name_hash = StringField(length=80, nullable=True, description='Name Hash')
     is_ora_block = BooleanField(default=False, nullable=False, description='True if the block is a ORA question')
-    ora_criterion_name = StringField(length=40, nullable=True, description='ORA criterion name')
+    ora_criterion_name = StringField(length=255, nullable=True, description='ORA criterion name')
     properties_data = StringField(length=65535, nullable=True, description='Properties data in JSON format')
     tags = StringField(length=4096, nullable=True, description='Tags')
     grade = FloatField(nullable=True, description='Grade')
