@@ -177,5 +177,5 @@ class RedShiftDistributionWorkflow(RedShiftDownstreamMixin,
             ('org_id',),
             ('module_id',),
             ('user_id',),
-            ('timestamp',),
+            ('org_id', 'timestamp'),
         ]
