@@ -60,13 +60,12 @@ class RedShiftBaseTask(RedShiftDownstreamMixin, EventLogSelectionMixin, MapReduc
     def reducer(self, key, values):
         course_id, org_id, course, run, term, block_id, user_id, ora_block, ora_criterion_name = key
 
-        updated_values = [v for v in values]
+        updated_values = [v for v in values]  # gen -> list
 
         attempts = []
         len_values = len(updated_values)
         if len_values > 1:
-            sorted_values = sorted(updated_values, key=lambda tup: tup[1])
-            updated_values = [v for v in sorted_values if v[0] != 'sequential_block.viewed']
+            updated_values = sorted(updated_values, key=lambda tup: tup[1])  # sort by timestamp
 
         num = 1
         for event_type, timestamp, display_name, question_text, question_hash, student_properties,\
