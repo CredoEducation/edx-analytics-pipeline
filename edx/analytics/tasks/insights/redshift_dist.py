@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import luigi
 import json
@@ -28,7 +29,7 @@ class RedShiftBaseTask(RedShiftDownstreamMixin, EventLogSelectionMixin, MapReduc
         'openassessmentblock.staff_assess',
         'sequential_block.viewed',
         'sequential_block.remove_view',
-#        'xblock.image-explorer.hotspot.opened',
+        'xblock.image-explorer.hotspot.opened',
     ]
 
     def output(self):
@@ -53,9 +54,10 @@ class RedShiftBaseTask(RedShiftDownstreamMixin, EventLogSelectionMixin, MapReduc
             res = [res]
 
         for e in res:
-            yield (e.course_id, e.org_id, e.course, e.run, e.term, e.block_id, e.user_id, e.ora_block, e.criterion_name),\
-                  (event_type, e.timestamp, e.display_name, e.question_text, e.question_hash, e.student_properties,
-                   e.saved_tags, e.grade, e.answers, e.correctness, e.is_new_attempt)
+            yield (e.course_id, e.org_id, e.course, e.run, e.term, e.block_id, e.user_id,
+                   e.ora_block, e.criterion_name),\
+                  (event_type, e.timestamp, e.display_name, e.question_text,
+                   e.grade, e.max_grade, e.answers, e.correctness, e.is_new_attempt)
 
     def reducer(self, key, values):
         course_id, org_id, course, run, term, block_id, user_id, ora_block, ora_criterion_name = key
@@ -67,20 +69,23 @@ class RedShiftBaseTask(RedShiftDownstreamMixin, EventLogSelectionMixin, MapReduc
         if len_values > 1:
             updated_values = sorted(updated_values, key=lambda tup: tup[1])  # sort by timestamp
 
+        answer_id = str(user_id) + '-' + block_id
+        question_token = block_id if not ora_block else block_id + '-' + ora_criterion_name
+        question_hash = hashlib.md5(question_token.encode('utf-8')).hexdigest()
+
         num = 1
-        for event_type, timestamp, display_name, question_text, question_hash, student_properties,\
-            saved_tags, grade, answers, correctness, is_new_attempt in updated_values:
+        for event_type, timestamp, display_name, question_text, grade, max_grade, answer, correctness, is_new_attempt\
+                in updated_values:
+            question_name = display_name if not ora_block else ora_criterion_name
             if is_new_attempt:
                 attempts.append({
                     'grade': grade,
-                    'answers': answers,
+                    'answer': answer,
                     'timestamp': timestamp,
                     'correctness': correctness
                 })
 
             if num == len_values:
-                properties_data_json = json.dumps(student_properties) if student_properties else None
-                tags_json = json.dumps(saved_tags) if saved_tags else None
                 attempts_json = json.dumps(attempts) if attempts else None
                 user_id_val = int(user_id) if user_id else None
                 dt = DateTimeField().deserialize_from_string(timestamp)
@@ -90,18 +95,19 @@ class RedShiftBaseTask(RedShiftDownstreamMixin, EventLogSelectionMixin, MapReduc
                     course=course,
                     run=run,
                     prop_term=term,
-                    module_id=block_id,
+                    block_id=block_id,
                     user_id=user_id_val,
+                    answer_id=answer_id,
                     timestamp=dt,
                     display_name=display_name,
+                    question_name=question_name,
                     question_text=question_text,
-                    name_hash=question_hash,
+                    question_hash=question_hash,
                     is_ora_block=ora_block,
                     ora_criterion_name=ora_criterion_name,
-                    properties_data=properties_data_json,
-                    tags=tags_json,
                     grade=grade,
-                    answers=answers,
+                    max_grade=max_grade,
+                    answer=answer,
                     correctness=correctness,
                     attempts=attempts_json
                 ).to_string_tuple()
@@ -110,24 +116,25 @@ class RedShiftBaseTask(RedShiftDownstreamMixin, EventLogSelectionMixin, MapReduc
 
 
 class RedShiftRecord(Record):
-    course_id = StringField(length=255, nullable=False, description='Course id')
-    org_id = StringField(length=80, nullable=False, description='Org id')
+    course_id = StringField(length=255, nullable=False, description='Course ID')
+    org_id = StringField(length=80, nullable=False, description='Org ID')
     course = StringField(length=255, nullable=False, description='Course')
     run = StringField(length=80, nullable=False, description='Run')
     prop_term = StringField(length=20, nullable=True, description='Term')
-    module_id = StringField(length=255, nullable=False, description='Problem id')
+    block_id = StringField(length=255, nullable=False, description='Problem ID')
     user_id = IntegerField(nullable=False, description='User ID')
+    answer_id = StringField(length=255, nullable=False, description='Answer ID')
     timestamp = DateTimeField(nullable=False, description='Event timestamp')
     display_name = StringField(length=2048, nullable=True, description='Problem Display Name')
+    question_name = StringField(length=2048, nullable=True, description='Question Name')
     question_text = StringField(length=65535, nullable=True, description='Question Text')
-    name_hash = StringField(length=80, nullable=True, description='Name Hash')
+    question_hash = StringField(length=80, nullable=True, description='Question Hash')
     is_ora_block = BooleanField(default=False, nullable=False, description='True if the block is a ORA question')
     ora_criterion_name = StringField(length=255, nullable=True, description='ORA criterion name')
-    properties_data = StringField(length=65535, nullable=True, description='Properties data in JSON format')
-    tags = StringField(length=4096, nullable=True, description='Tags')
     grade = FloatField(nullable=True, description='Grade')
-    answers = StringField(length=65535, nullable=True, description='Answer')
-    correctness = StringField(length=15, nullable=True, description='Correctness')
+    max_grade = FloatField(nullable=True, description='Max grade')
+    answer = StringField(length=65535, nullable=True, description='Answer')
+    correctness = StringField(length=20, nullable=True, description='Correctness')
     attempts = StringField(length=65535, nullable=True, description='Attempts')
 
 
@@ -175,7 +182,7 @@ class RedShiftDistributionWorkflow(RedShiftDownstreamMixin,
         return [
             ('course_id',),
             ('org_id',),
-            ('module_id',),
+            ('block_id',),
             ('user_id',),
             ('org_id', 'timestamp'),
         ]

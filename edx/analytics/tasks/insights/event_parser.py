@@ -57,7 +57,7 @@ class EventProcessor(object):
 class EventData(object):
     def __init__(self, category, course_id, org_id, course, run, block_id,
                  timestamp, real_timestamp, saved_tags, student_properties,
-                 grade, user_id, display_name, question_text, question_hash, question_text_hash,
+                 grade, max_grade, user_id, display_name, question_text, question_hash, question_text_hash,
                  answers, submit_info=None, is_ora_empty_rubrics=False, is_block_view=False, possible_points=None,
                  ora_block=False, is_new_attempt=False, block_seq=None, is_staff=False, criterion_name=None,
                  correctness=None):
@@ -72,6 +72,7 @@ class EventData(object):
         self.saved_tags = saved_tags
         self.student_properties = student_properties
         self.grade = grade
+        self.max_grade = max_grade
         self.user_id = user_id
         self.display_name = display_name.replace("\n", " ").replace("\t", " ") if display_name else ""
         self.question_text = question_text.replace("\n", " ").replace("\t", " ") if question_text else ""
@@ -139,8 +140,9 @@ class EventParser(object):
         if not self.custom_event_condition(event, *args, **kwargs):
             return None
 
-        correctness = self.get_correctness(event_data, *args, **kwargs)
-        grade = self.get_grade(correctness, *args, **kwargs)
+        correct_data = self.get_correctness(event_data, *args, **kwargs)
+        grade = self.get_grade(correct_data, *args, **kwargs)
+        max_grade = correct_data.max_grade if correct_data else 0
         saved_tags = self.convert_tags(self.get_saved_tags(event, **kwargs))
         display_name = self.get_display_name(event, *args, **kwargs)
         question_text = self.get_question_text(event, *args, **kwargs)
@@ -150,8 +152,9 @@ class EventParser(object):
 
         course, student_properties = self._update_course_and_student_properties(course, student_properties, dtime)
 
-        answers = self.get_answers(event, correctness, dtime_ts, grade=grade, *args, **kwargs)
+        answers = self.get_answers(event, correct_data, dtime_ts, grade=grade, *args, **kwargs)
         criterion_name = kwargs.get('criterion_name', None)
+        correctness = correct_data.correctness if correct_data else None
 
         return EventData(
             category=self.get_category(event),
@@ -165,6 +168,7 @@ class EventParser(object):
             saved_tags=saved_tags,
             student_properties=student_properties,
             grade=grade,
+            max_grade=max_grade,
             user_id=user_id,
             display_name=display_name,
             question_text=question_text,
@@ -177,7 +181,8 @@ class EventParser(object):
             ora_block=self.is_ora_block(event, *args, **kwargs),
             is_new_attempt=self.is_new_attempt(event, *args, **kwargs),
             is_staff=is_staff,
-            criterion_name=criterion_name
+            criterion_name=criterion_name,
+            correctness=correctness
         )
 
     def user_info(self, event):
