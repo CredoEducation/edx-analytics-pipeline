@@ -60,6 +60,13 @@ class RedShiftPropsBaseTask(RedShiftDownstreamMixin, EventLogSelectionMixin, Map
         if len_values > 1:
             updated_values = sorted(updated_values, key=lambda tup: tup[1])  # sort by timestamp
 
+        if len(updated_values) > 1:
+            unique_event_types = list(set([v[0] for v in updated_values]))
+            if len(unique_event_types) == 2 \
+                    and updated_values[0][0] == 'sequential_block.viewed' \
+                    and updated_values[-1][0] == 'sequential_block.remove_view':
+                return
+
         answer_id = str(user_id) + '-' + block_id
 
         num = 1
