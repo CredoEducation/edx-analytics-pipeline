@@ -149,7 +149,6 @@ class RedShiftRecord(Record):
 class RedShiftDistributionWorkflow(RedShiftDownstreamMixin,
                                    EventLogSelectionDownstreamMixin,
                                    MapReduceJobTaskMixin,
-                                   MysqlInsertTask,
                                    luigi.WrapperTask):
 
     # Override the parameter that normally defaults to false. This ensures that the table will always be overwritten.
@@ -159,37 +158,10 @@ class RedShiftDistributionWorkflow(RedShiftDownstreamMixin,
         significant=False
     )
 
-    @property
-    def insert_source_task(self):
+    def requires(self):
         return RedShiftBaseTask(
             n_reduce_tasks=self.n_reduce_tasks,
             output_root=self.output_root,
             interval=self.interval,
             source=self.source
         )
-
-    @property
-    def table(self):
-        return "tracking_events"
-
-    @property
-    def columns(self):
-        return RedShiftRecord.get_sql_schema()
-
-    @property
-    def auto_primary_key(self):
-        return None
-
-    @property
-    def default_columns(self):
-        return []
-
-    @property
-    def indexes(self):
-        return [
-            ('course_id',),
-            ('org_id',),
-            ('block_id',),
-            ('user_id',),
-            ('org_id', 'timestamp'),
-        ]
